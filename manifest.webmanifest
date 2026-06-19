@@ -1,0 +1,15 @@
+{
+  "name": "Trading Journal & Market Insight",
+  "short_name": "Trading Journal",
+  "description": "Personal crypto trading journal with live market insight, FOMC dot plot, and economic calendar.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f5f7",
+  "theme_color": "#0071e3",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal & Market Insight</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0071e3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trading Journal">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#f5f5f7; --panel:#ffffff; --panel-2:#f0f0f3; --border:#e3e3e8;
+    --text:#1d1d1f; --muted:#86868b; --accent:#0071e3; --accent-2:#0071e3;
+    --green:#2da44e; --red:#e5484d; --amber:#cf8a00; --purple:#5e5ce6;
+    --radius:18px; --shadow:0 2px 14px rgba(0,0,0,.05),0 1px 3px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+  .wrap{max-width:1440px;margin:0 auto;padding:18px 22px 40px}
+  header.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:24px;
+    position:sticky;top:12px;z-index:40;padding:13px 20px;border-radius:20px;
+    background:rgba(255,255,255,.72);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+    border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 24px rgba(0,0,0,.06)}
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#0a84ff,#0058d0);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px;color:#fff;box-shadow:0 4px 12px rgba(10,132,255,.35)}
+  .brand h1{font-size:20px;font-weight:600;letter-spacing:-.02em}
+  .brand p{font-size:12.5px;color:var(--muted);font-weight:400}
+  .top-actions{display:flex;gap:9px;flex-wrap:wrap}
+  .btn{border:1px solid var(--border);background:#fff;color:var(--text);padding:9px 16px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:500;transition:.18s ease;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{background:var(--panel-2);border-color:#d0d0d6}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+  .btn.primary:hover{background:#0077ed}
+  .btn.danger:hover{color:var(--red);border-color:var(--red);background:rgba(229,72,77,.06)}
+  .btn.ghost{background:transparent;border-color:transparent}
+  .btn.ghost:hover{background:var(--panel-2)}
+
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+  .dual{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  @media(max-width:900px){.dual{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid rgba(0,0,0,.05);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card .hd{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--border)}
+  .card .hd h2{font-size:15.5px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .card .bd{padding:20px}
+  .tag{font-size:11px;font-weight:500;letter-spacing:0;padding:3px 10px;border-radius:980px;background:var(--panel-2);color:var(--muted)}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:20px}
+  @media(max-width:1100px){.stats{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel);border:1px solid rgba(0,0,0,.05);border-radius:16px;padding:16px 17px;box-shadow:var(--shadow)}
+  .stat .lbl{font-size:12px;color:var(--muted);font-weight:500}
+  .stat .val{font-size:26px;font-weight:600;margin-top:6px;letter-spacing:-.02em}
+  .stat .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+
+  /* form */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  @media(max-width:560px){.form-grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:7px}
+  .field.full{grid-column:1/-1}
+  label{font-size:12.5px;color:var(--muted);font-weight:500}
+  input,select,textarea{background:#fff;border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:12px;font-size:14px;font-family:inherit;width:100%;transition:.15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px rgba(0,113,227,.12)}
+  textarea{resize:vertical;min-height:78px}
+  .seg{display:flex;gap:3px;background:var(--panel-2);border-radius:12px;padding:3px}
+  .seg label{flex:1;cursor:pointer}
+  .seg input{display:none}
+  .seg span{display:block;text-align:center;padding:9px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);transition:.18s}
+  .seg input:checked + span.long{background:#fff;color:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .seg input:checked + span.short{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .drop{border:1.5px dashed #c7c7cc;border-radius:14px;padding:22px;text-align:center;cursor:pointer;transition:.15s;background:#fafafa}
+  .drop:hover{border-color:var(--accent);background:rgba(0,113,227,.04)}
+  .drop.has{padding:8px}
+  .drop img{max-width:100%;max-height:170px;border-radius:10px}
+  .drop .hint{color:var(--muted);font-size:13px}
+
+  /* table */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;padding:12px 14px;color:var(--muted);font-size:11.5px;font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(0,0,0,.018)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:980px;font-size:11.5px;font-weight:600}
+  .pill.long{background:rgba(45,164,78,.13);color:var(--green)}
+  .pill.short{background:rgba(229,72,77,.13);color:var(--red)}
+  .pill.win{background:rgba(45,164,78,.13);color:var(--green)}
+  .pill.loss{background:rgba(229,72,77,.13);color:var(--red)}
+  .pill.open{background:rgba(207,138,0,.14);color:var(--amber)}
+  .pill.be{background:rgba(134,134,139,.15);color:var(--muted)}
+  .thumb{width:42px;height:42px;border-radius:9px;object-fit:cover;cursor:pointer;border:1px solid var(--border)}
+  .rowbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px}
+  .rowbtn:hover{color:var(--accent);background:var(--panel-2)}
+  .rowbtn.del:hover{color:var(--red);background:rgba(229,72,77,.08)}
+  .empty{text-align:center;padding:42px;color:var(--muted);font-size:13.5px}
+
+  /* market insight */
+  .mi-block{padding:16px 20px;border-bottom:1px solid var(--border)}
+  .mi-block:last-child{border-bottom:none}
+  .mi-title{font-size:12.5px;font-weight:600;color:var(--text);letter-spacing:-.01em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+  .src{font-size:10.5px;color:var(--muted);font-weight:400}
+  .coins{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .coin{background:var(--panel-2);border-radius:14px;padding:12px 13px}
+  .coin .nm{font-size:12px;color:var(--muted);font-weight:500}
+  .coin .px{font-size:18px;font-weight:600;margin-top:3px;letter-spacing:-.02em}
+  .coin .ch{font-size:12.5px;font-weight:600;margin-top:2px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .mrow{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0}
+  .mrow .k{color:var(--muted)}
+  .mrow .v{font-weight:600}
+
+  /* fear greed gauge */
+  .fg{display:flex;align-items:center;gap:16px}
+  .fg-circle{position:relative;width:90px;height:90px;flex-shrink:0}
+  .fg-circle svg{transform:rotate(-90deg)}
+  .fg-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .fg-num b{font-size:25px;font-weight:600}
+  .fg-num small{font-size:9px;color:var(--muted)}
+  .fg-label{font-size:16px;font-weight:600}
+
+  /* long short bars */
+  .ls{margin-bottom:13px}
+  .ls:last-child{margin-bottom:0}
+  .ls .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
+  .ls .top .who{font-weight:600}
+  .ls .bar{height:24px;border-radius:8px;overflow:hidden;display:flex;font-size:11px;font-weight:700;color:#fff}
+  .ls .bar .l{background:var(--green);display:flex;align-items:center;justify-content:flex-start;padding-left:9px}
+  .ls .bar .s{background:var(--red);display:flex;align-items:center;justify-content:flex-end;padding-right:9px}
+  .ls .note{font-size:11px;color:var(--muted);margin-top:5px}
+
+  .news a{display:block;color:var(--text);text-decoration:none;font-size:13.5px;padding:10px 0;border-bottom:1px solid var(--border);transition:.15s}
+  .news a:last-child{border-bottom:none}
+  .news a:hover{color:var(--accent)}
+  .news .meta{font-size:11px;color:var(--muted);margin-top:3px}
+
+  .fomc-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .fomc-item:last-child{border-bottom:none}
+  .fomc-date{background:var(--panel-2);border-radius:12px;width:52px;height:52px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .fomc-date .d{font-size:19px;font-weight:600;line-height:1}
+  .fomc-date .m{font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .fomc-info .t{font-size:13.5px;font-weight:600}
+  .fomc-info .c{font-size:12px;color:var(--muted)}
+  .fomc-item.next{background:rgba(0,113,227,.07);margin:0 -10px;padding:10px;border-radius:12px;border-bottom:none}
+  .fomc-item.next .fomc-date{background:rgba(0,113,227,.14)}
+
+  .loading{color:var(--muted);font-size:13px;padding:6px 0}
+  .updated{font-size:11.5px;color:var(--muted)}
+
+  /* by-pair + calendar */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .cal-head .mlabel{font-size:14px;font-weight:600}
+  .cal-nav{display:flex;gap:6px}
+  .cal-nav button{width:30px;height:30px;border-radius:9px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text);font-size:14px;transition:.15s}
+  .cal-nav button:hover{background:var(--panel-2)}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-dow{font-size:11px;color:var(--muted);text-align:center;font-weight:500;padding-bottom:2px}
+  .cal-day{aspect-ratio:1;border-radius:11px;background:var(--panel-2);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .cal-day.blank{background:transparent}
+  .cal-day .dn{position:absolute;top:5px;left:7px;font-size:10px;color:var(--muted);font-weight:500}
+  .cal-day .rv{font-size:13px;font-weight:700;letter-spacing:-.02em}
+  .cal-day .cnt{font-size:9.5px;opacity:.75;margin-top:1px}
+  .cal-legend{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:14px;font-size:11px;color:var(--muted)}
+  .cal-legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:4px;vertical-align:-2px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal.show{display:flex}
+  .modal img{max-width:92vw;max-height:88vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .modal .close{position:absolute;top:22px;right:26px;font-size:26px;color:#fff;cursor:pointer;background:rgba(255,255,255,.16);border:none;width:40px;height:40px;border-radius:50%;line-height:1}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120px);background:rgba(30,30,32,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:none;color:#fff;padding:13px 22px;border-radius:14px;font-size:13.5px;font-weight:500;z-index:60;transition:.35s cubic-bezier(.2,.8,.2,1);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .disclaimer{font-size:11.5px;color:var(--muted);text-align:center;margin-top:26px;padding:16px;line-height:1.6}
+
+  /* ===== Dark mode (Apple) ===== */
+  html{transition:background .25s ease}
+  [data-theme="dark"]{
+    --bg:#000000; --panel:#1c1c1e; --panel-2:#2c2c2e; --border:#38383a;
+    --text:#f5f5f7; --muted:#98989d; --accent:#0a84ff; --accent-2:#0a84ff;
+    --green:#30d158; --red:#ff453a; --amber:#ffd60a; --purple:#5e5ce6;
+    --shadow:0 2px 16px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.4);
+  }
+  [data-theme="dark"] header.top{background:rgba(28,28,30,.72);border-color:rgba(255,255,255,.08)}
+  [data-theme="dark"] .card,[data-theme="dark"] .stat{border-color:rgba(255,255,255,.07)}
+  [data-theme="dark"] .btn{background:#2c2c2e;border-color:#38383a;color:var(--text)}
+  [data-theme="dark"] .btn:hover{background:#3a3a3c}
+  [data-theme="dark"] .btn.primary{background:var(--accent);color:#fff}
+  [data-theme="dark"] .btn.ghost{background:transparent}
+  [data-theme="dark"] .btn.ghost:hover{background:#2c2c2e}
+  [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{background:#2c2c2e;border-color:#38383a;color:var(--text)}
+  [data-theme="dark"] .seg{background:#2c2c2e}
+  [data-theme="dark"] .seg input:checked + span.long{background:#48484a;color:var(--green)}
+  [data-theme="dark"] .seg input:checked + span.short{background:#48484a;color:var(--red)}
+  [data-theme="dark"] .drop{background:#2c2c2e;border-color:#48484a}
+  [data-theme="dark"] .cal-nav button{background:#2c2c2e;border-color:#38383a;color:var(--text)}
+  [data-theme="dark"] .modal{background:rgba(0,0,0,.6)}
+
+  /* fear & greed track adapts to theme */
+  .fg-track{stroke:#e3e3e8}
+  [data-theme="dark"] .fg-track{stroke:#38383a}
+
+  /* toolbar / strategy filter */
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .toolbar .lbl{font-size:12.5px;color:var(--muted);font-weight:500}
+  .toolbar select{width:auto;min-width:170px;padding:8px 12px;font-size:13px}
+  .toolbar .clearf{font-size:12.5px;color:var(--accent);cursor:pointer;font-weight:500}
+
+  /* calendar day text (theme-aware) */
+  .cal-day.pos .rv,.cal-day.pos .cnt{color:#1b6b32}
+  .cal-day.neg .rv,.cal-day.neg .cnt{color:#b3262b}
+  [data-theme="dark"] .cal-day.pos .rv,[data-theme="dark"] .cal-day.pos .cnt{color:#4ade80}
+  [data-theme="dark"] .cal-day.neg .rv,[data-theme="dark"] .cal-day.neg .cnt{color:#ff6b6b}
+
+  /* setup/strategy chip in table */
+  .stchip{display:inline-block;margin-top:4px;font-size:10px;font-weight:600;color:var(--accent);background:rgba(0,113,227,.1);padding:1px 7px;border-radius:980px}
+  [data-theme="dark"] .stchip{background:rgba(10,132,255,.18)}
+
+  /* FOMC dot plot + SEP */
+  .dotplot{overflow-x:auto}
+  .dpsvg{min-width:560px;display:block}
+  .dpsvg text{fill:var(--muted);font-family:inherit}
+  .dpsvg .grid{stroke:var(--border);stroke-width:1}
+  .dpsvg .sep{stroke:var(--border)}
+  .dpsvg .dot{fill:var(--accent);opacity:.85}
+  .dpsvg .med{stroke:#ff9f0a}
+  .dpsvg .medlbl{fill:#ff9f0a;font-weight:700}
+  .sep-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start}
+  @media(max-width:760px){.sep-grid{grid-template-columns:1fr}}
+  .sep-table{width:100%;border-collapse:collapse;font-size:13px}
+  .sep-table th,.sep-table td{padding:9px 12px;border-bottom:1px solid var(--border)}
+  .sep-table th{color:var(--muted);font-weight:500;font-size:12px;text-align:left}
+  .sep-table tr:last-child td{border-bottom:none}
+  .sep-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:6px}
+  .sep-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+  /* rate expectations tiles */
+  .rate-tiles{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .rate-tile{flex:1;min-width:130px;background:var(--panel-2);border-radius:14px;padding:13px 15px}
+  .rate-tile .lbl{font-size:11px;color:var(--muted);font-weight:500}
+  .rate-tile .val{font-size:19px;font-weight:600;margin-top:4px;letter-spacing:-.02em}
+  .rate-tile .sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* economic calendar */
+  .econ-item{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .econ-item:last-child{border-bottom:none}
+  .econ-ico{width:34px;height:34px;border-radius:10px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .econ-info{flex:1;min-width:0}
+  .econ-info .t{font-size:13px;font-weight:600}
+  .econ-info .c{font-size:11.5px;color:var(--muted)}
+  .econ-when{font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
+  .econ-item.soon{background:rgba(0,113,227,.07);margin:0 -10px;padding:9px 10px;border-radius:10px;border-bottom:none}
+  .econ-item.soon .econ-when{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">TJ</div>
+      <div>
+        <h1>Trading Journal & Market Insight</h1>
+        <p>Personal desk — log trades, track performance, read the tape. <span id="clock"></span></p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="themeToggle" title="Toggle light / dark">🌙</button>
+      <button class="btn ghost" id="refreshBtn">⟳ Refresh market</button>
+      <button class="btn" id="exportBtn">⭳ Backup</button>
+      <button class="btn" id="importBtn">⭱ Restore</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+  </header>
+
+  <!-- STRATEGY FILTER -->
+  <div class="toolbar">
+    <span class="lbl">Filter by strategy:</span>
+    <select id="tagFilter"><option value="">All strategies</option></select>
+    <span class="clearf" id="clearFilter" style="display:none">✕ clear filter</span>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats" id="stats"></div>
+
+  <!-- EQUITY CURVE -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd">
+      <h2>📈 Equity Curve <span class="tag">Cumulative R</span></h2>
+      <span class="updated" id="curveSummary"></span>
+    </div>
+    <div class="bd" id="curveBody">
+      <div id="curveChart"></div>
+      <div class="empty" id="curveEmpty">Close a few trades (Win/Loss/BE) and your cumulative R curve appears here.</div>
+    </div>
+  </div>
+
+  <!-- PER-PAIR + CALENDAR -->
+  <div class="dual">
+    <div class="card">
+      <div class="hd"><h2>🎯 Performance by Pair</h2><span class="tag" id="byPairCount"></span></div>
+      <div class="bd" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Pair</th><th>Trades</th><th>Win%</th><th>Avg RR</th><th>Net R</th></tr></thead>
+            <tbody id="byPairBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="byPairEmpty">Log trades to see per-pair stats.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>🗓️ Monthly P&amp;L</h2><span class="updated" id="calNet"></span></div>
+      <div class="bd">
+        <div class="cal-head">
+          <div class="mlabel" id="calLabel">—</div>
+          <div class="cal-nav"><button id="calPrev">‹</button><button id="calToday">•</button><button id="calNext">›</button></div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend"><span><i style="background:rgba(45,164,78,.55)"></i>Green day</span><span><i style="background:rgba(229,72,77,.5)"></i>Red day</span><span><i style="background:var(--panel-2)"></i>No trades</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOMC DOT PLOT & SEP -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd">
+      <h2>🟦 FOMC Dot Plot &amp; Projections <span class="tag">SEP</span></h2>
+      <span class="updated" id="sepAsof"></span>
+    </div>
+    <div class="bd">
+      <div class="rate-tiles" id="rateTiles"></div>
+      <div class="sep-grid">
+        <div>
+          <div class="dotplot" id="dotplot"></div>
+          <div class="sep-legend">
+            <span><i style="background:var(--accent)"></i>Each dot = one FOMC participant's year-end rate view</span>
+            <span><i style="background:#ff9f0a"></i>Median projection</span>
+          </div>
+        </div>
+        <div>
+          <div id="sepTable"></div>
+        </div>
+      </div>
+      <div class="updated" id="sepMeta" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: journal -->
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="hd"><h2>📝 New Trade Entry</h2><span class="tag" id="editTag" style="display:none">Editing</span></div>
+        <div class="bd">
+          <form id="tradeForm">
+            <input type="hidden" id="entryId">
+            <div class="form-grid">
+              <div class="field">
+                <label>Date opened</label>
+                <input type="datetime-local" id="date" required>
+              </div>
+              <div class="field">
+                <label>Pair</label>
+                <input list="pairs" id="pair" placeholder="BTC/USDT" required>
+                <datalist id="pairs">
+                  <option>BTC/USDT</option><option>ETH/USDT</option><option>SOL/USDT</option>
+                  <option>BNB/USDT</option><option>XRP/USDT</option><option>DOGE/USDT</option>
+                  <option>ADA/USDT</option><option>AVAX/USDT</option><option>LINK/USDT</option>
+                  <option>MATIC/USDT</option><option>ARB/USDT</option><option>OP/USDT</option>
+                  <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+                  <option>AUD/USD</option><option>USD/CAD</option><option>XAU/USD (Gold)</option>
+                  <option>S&amp;P 500 (SPX)</option><option>NASDAQ 100 (NDX)</option><option>Dow (DJI)</option>
+                  <option>US30</option><option>NAS100</option><option>WTI Oil</option>
+                </datalist>
+              </div>
+              <div class="field full">
+                <label>Direction</label>
+                <div class="seg">
+                  <label><input type="radio" name="dir" value="Long" checked><span class="long">▲ LONG</span></label>
+                  <label><input type="radio" name="dir" value="Short"><span class="short">▼ SHORT</span></label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Risk : Reward (RR)</label>
+                <input type="number" id="rr" step="0.1" min="0" placeholder="3.0">
+              </div>
+              <div class="field">
+                <label>Sizing (risk % or $)</label>
+                <input type="text" id="sizing" placeholder="1% / $250">
+              </div>
+              <div class="field">
+                <label>Entry price</label>
+                <input type="number" id="entry" step="any" placeholder="optional">
+              </div>
+              <div class="field">
+                <label>Stop / Target</label>
+                <input type="text" id="sltp" placeholder="SL 64000 / TP 70000 (optional)">
+              </div>
+              <div class="field">
+                <label>Outcome</label>
+                <select id="outcome">
+                  <option value="Open">Open</option>
+                  <option value="Win">Win</option>
+                  <option value="Loss">Loss</option>
+                  <option value="BE">Break-even</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Result (R multiple, e.g. +3 / -1)</label>
+                <input type="number" id="rmult" step="0.1" placeholder="auto if blank">
+              </div>
+              <div class="field full">
+                <label>Strategy / Setup tag</label>
+                <input list="tags" id="tag" placeholder="Breakout / Reversal / Trend / News…">
+                <datalist id="tags">
+                  <option>Breakout</option><option>Reversal</option><option>Trend follow</option>
+                  <option>Range</option><option>Scalp</option><option>News</option>
+                  <option>Liquidity grab</option><option>Support/Resistance</option><option>FVG</option>
+                </datalist>
+              </div>
+              <div class="field full">
+                <label>Reason / thesis for the trade</label>
+                <textarea id="reason" placeholder="Setup, confluence, why now…"></textarea>
+              </div>
+              <div class="field full">
+                <label>Trade plan screenshot</label>
+                <div class="drop" id="drop">
+                  <div class="hint" id="dropHint">📷 Click or drop your plan chart here</div>
+                  <input type="file" id="imgInput" accept="image/*" style="display:none">
+                </div>
+              </div>
+              <div class="field full" style="flex-direction:row;gap:10px">
+                <button type="submit" class="btn primary" style="flex:1">💾 Save trade</button>
+                <button type="button" class="btn ghost" id="resetBtn">Clear</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>📒 Trade Log</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="search" placeholder="Search pair / reason…" style="width:170px;padding:7px 10px;font-size:12px">
+            <button class="btn danger ghost" id="clearAll" style="font-size:12px;padding:7px 11px">Clear all</button>
+          </div>
+        </div>
+        <div class="bd" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Date</th><th>Pair</th><th>Dir</th><th>RR</th><th>Sizing</th>
+                <th>Reason</th><th>Outcome</th><th>R</th><th>Plan</th><th></th>
+              </tr></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="emptyState">No trades logged yet. Add your first above. 👆</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: market insight -->
+    <div class="card" style="position:sticky;top:18px">
+      <div class="hd">
+        <h2>🛰️ Market Insight</h2>
+        <span class="updated" id="miUpdated">loading…</span>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Crypto Market <span class="src">CoinGecko</span></div>
+        <div class="coins" id="coins"><div class="loading">Fetching prices…</div></div>
+        <div style="margin-top:11px" id="globalMkt"></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Forex <span class="src">Frankfurter / ECB</span></div>
+        <div id="forex"><div class="loading">Loading FX rates…</div></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Indices & Commodities <span class="src">Stooq</span></div>
+        <div id="indices"><div class="loading">Loading indices…</div></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Fear & Greed Index <span class="src">Alternative.me</span></div>
+        <div id="feargreed"><div class="loading">Loading sentiment…</div></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Retail vs Fund Positioning <span class="src">OKX rubik</span></div>
+        <div id="longshort"><div class="loading">Loading positioning…</div></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Crypto News <span class="src">CryptoCompare</span></div>
+        <div class="news" id="news"><div class="loading">Loading headlines…</div></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">FOMC & Policy Schedule <span class="src">U.S. Federal Reserve</span></div>
+        <div id="fomc"></div>
+      </div>
+
+      <div class="mi-block">
+        <div class="mi-title">Economic Calendar <span class="src">BLS · Federal Reserve</span></div>
+        <div id="econcal"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    Market data is pulled live from public APIs (CoinGecko, Alternative.me, Binance, CryptoCompare) and the official Federal Reserve calendar, each labeled with its source and timestamp.
+    This is an informational journaling tool — not financial advice. Your journal data is stored only in this browser. Use <b>Backup</b> regularly.
+  </div>
+</div>
+
+<div class="modal" id="modal"><button class="close" id="modalClose">&times;</button><img id="modalImg"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Daily cache written by update-market-data.ps1 (Task Scheduler). Optional: page works live without it. -->
+<script>window.__MARKET_CACHE__=null;</script>
+<script src="market-cache.js" onerror="console.log('No daily cache yet — using live data only.')"></script>
+
+<script>
+/* ============ STORAGE ============ */
+const KEY='tj_entries_v1';
+let entries=JSON.parse(localStorage.getItem(KEY)||'[]');
+let pendingImg=null;
+const save=()=>localStorage.setItem(KEY,JSON.stringify(entries));
+const $=id=>document.getElementById(id);
+const fmt=n=>n==null||n===''?'—':n;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* ============ CLOCK ============ */
+function tick(){const d=new Date();$('clock').textContent='· '+d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+tick();setInterval(tick,30000);
+
+/* ============ IMAGE (compress to keep storage small) ============ */
+function handleImg(file){
+  if(!file||!file.type.startsWith('image/'))return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1100;let{width:w,height:h}=img;
+      if(w>max||h>max){const s=max/Math.max(w,h);w*=s;h*=s;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      pendingImg=c.toDataURL('image/jpeg',0.72);
+      $('drop').classList.add('has');
+      $('drop').innerHTML='<img src="'+pendingImg+'"><div class="hint" style="margin-top:6px">Click to change</div><input type="file" id="imgInput" accept="image/*" style="display:none">';
+      bindDrop();
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+function bindDrop(){
+  const drop=$('drop'),inp=$('imgInput');
+  drop.onclick=()=>inp.click();
+  inp.onchange=e=>handleImg(e.target.files[0]);
+  drop.ondragover=e=>{e.preventDefault();drop.style.borderColor='var(--accent)';};
+  drop.ondragleave=()=>drop.style.borderColor='';
+  drop.ondrop=e=>{e.preventDefault();drop.style.borderColor='';handleImg(e.dataTransfer.files[0]);};
+}
+bindDrop();
+
+/* ============ FORM ============ */
+$('date').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+
+$('tradeForm').onsubmit=e=>{
+  e.preventDefault();
+  const id=$('entryId').value;
+  const obj={
+    id:id||Date.now().toString(),
+    date:$('date').value,
+    pair:$('pair').value.toUpperCase(),
+    dir:document.querySelector('input[name=dir]:checked').value,
+    rr:$('rr').value,
+    sizing:$('sizing').value,
+    entry:$('entry').value,
+    sltp:$('sltp').value,
+    outcome:$('outcome').value,
+    rmult:$('rmult').value,
+    tag:$('tag').value.trim(),
+    reason:$('reason').value,
+    img:pendingImg
+  };
+  if(id){const i=entries.findIndex(x=>x.id===id);entries[i]=obj;toast('Trade updated ✓');}
+  else{entries.unshift(obj);toast('Trade saved ✓');}
+  save();render();resetForm();
+};
+function resetForm(){
+  $('tradeForm').reset();$('entryId').value='';pendingImg=null;
+  $('editTag').style.display='none';
+  $('date').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const drop=$('drop');drop.classList.remove('has');
+  drop.innerHTML='<div class="hint" id="dropHint">📷 Click or drop your plan chart here</div><input type="file" id="imgInput" accept="image/*" style="display:none">';
+  bindDrop();
+}
+$('resetBtn').onclick=resetForm;
+
+function edit(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  $('entryId').value=e.id;$('date').value=e.date;$('pair').value=e.pair;
+  document.querySelector('input[name=dir][value="'+e.dir+'"]').checked=true;
+  $('rr').value=e.rr;$('sizing').value=e.sizing;$('entry').value=e.entry||'';
+  $('sltp').value=e.sltp||'';$('outcome').value=e.outcome||'Open';$('rmult').value=e.rmult||'';
+  $('tag').value=e.tag||'';$('reason').value=e.reason||'';pendingImg=e.img||null;
+  $('editTag').style.display='inline-block';
+  const drop=$('drop');
+  if(e.img){drop.classList.add('has');drop.innerHTML='<img src="'+e.img+'"><div class="hint" style="margin-top:6px">Click to change</div><input type="file" id="imgInput" accept="image/*" style="display:none">';}
+  else{drop.classList.remove('has');drop.innerHTML='<div class="hint">📷 Click or drop your plan chart here</div><input type="file" id="imgInput" accept="image/*" style="display:none">';}
+  bindDrop();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function del(id){if(confirm('Delete this trade?')){entries=entries.filter(x=>x.id!==id);save();render();toast('Deleted');}}
+
+/* ============ RENDER TABLE + STATS ============ */
+function autoR(e){
+  if(e.rmult!==''&&e.rmult!=null)return parseFloat(e.rmult);
+  if(e.outcome==='Win'&&e.rr)return parseFloat(e.rr);
+  if(e.outcome==='Loss')return -1;
+  if(e.outcome==='BE')return 0;
+  return null;
+}
+/* ---- strategy filter scope ---- */
+let activeTag='';
+function scopedEntries(){return activeTag?entries.filter(e=>(e.tag||'')===activeTag):entries;}
+function refreshTagFilter(){
+  const tags=[...new Set(entries.map(e=>e.tag).filter(Boolean))].sort();
+  if(activeTag&&!tags.includes(activeTag))activeTag='';
+  $('tagFilter').innerHTML='<option value="">All strategies</option>'+
+    tags.map(t=>`<option${t===activeTag?' selected':''}>${t}</option>`).join('');
+  $('clearFilter').style.display=activeTag?'inline':'none';
+}
+$('tagFilter').onchange=e=>{activeTag=e.target.value;render();};
+$('clearFilter').onclick=()=>{activeTag='';render();};
+
+function render(){
+  refreshTagFilter();
+  const q=($('search').value||'').toLowerCase();
+  const list=scopedEntries().filter(e=>!q||e.pair.toLowerCase().includes(q)||(e.reason||'').toLowerCase().includes(q)||(e.tag||'').toLowerCase().includes(q));
+  const tb=$('tbody');tb.innerHTML='';
+  $('emptyState').style.display=list.length?'none':'block';
+  list.forEach(e=>{
+    const r=autoR(e);
+    const tr=document.createElement('tr');
+    const oc=(e.outcome||'Open').toLowerCase().replace('break-even','be');
+    const ocCls=e.outcome==='BE'?'be':oc;
+    tr.innerHTML=`
+      <td style="white-space:nowrap">${new Date(e.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}<br><span style="color:var(--muted);font-size:11px">${new Date(e.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span></td>
+      <td style="font-weight:700">${e.pair}${e.tag?`<br><span class="stchip">${e.tag}</span>`:''}</td>
+      <td><span class="pill ${e.dir.toLowerCase()}">${e.dir==='Long'?'▲':'▼'} ${e.dir}</span></td>
+      <td style="font-weight:700">${e.rr?e.rr+'R':'—'}</td>
+      <td>${fmt(e.sizing)}</td>
+      <td style="max-width:230px;color:var(--muted)"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.reason||'').replace(/"/g,'&quot;')}">${fmt(e.reason)}</div></td>
+      <td><span class="pill ${ocCls}">${e.outcome||'Open'}</span></td>
+      <td style="font-weight:700;color:${r>0?'var(--green)':r<0?'var(--red)':'var(--muted)'}">${r==null?'—':(r>0?'+':'')+r+'R'}</td>
+      <td>${e.img?`<img class="thumb" src="${e.img}" data-img="${e.id}">`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="white-space:nowrap"><button class="rowbtn" data-edit="${e.id}">✎</button><button class="rowbtn del" data-del="${e.id}">🗑</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));
+  tb.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>del(b.dataset.del));
+  tb.querySelectorAll('[data-img]').forEach(i=>i.onclick=()=>{$('modalImg').src=i.src;$('modal').classList.add('show');});
+  renderStats();
+  renderCurve();
+  renderByPair();
+  renderCalendar();
+}
+
+/* ============ EQUITY CURVE (cumulative R) ============ */
+function renderCurve(){
+  const closed=scopedEntries().filter(e=>e.outcome&&e.outcome!=='Open')
+    .slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const pts=[];let cum=0;
+  closed.forEach(e=>{const r=autoR(e);if(r!=null){cum+=r;pts.push({d:e.date,cum:cum});}});
+  if(pts.length<1){$('curveChart').innerHTML='';$('curveEmpty').style.display='block';$('curveSummary').textContent='';return;}
+  $('curveEmpty').style.display='none';
+  // start at 0 baseline
+  const series=[0,...pts.map(p=>p.cum)];
+  const W=1000,H=240,pad=34;
+  const min=Math.min(0,...series),max=Math.max(0,...series);
+  const range=(max-min)||1;
+  const x=i=>pad+(i/(series.length-1||1))*(W-pad*2);
+  const y=v=>H-pad-((v-min)/range)*(H-pad*2);
+  const line=series.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  const area=line+` L ${x(series.length-1).toFixed(1)} ${y(min).toFixed(1)} L ${x(0).toFixed(1)} ${y(min).toFixed(1)} Z`;
+  const zeroY=y(0).toFixed(1);
+  const up=cum>=0;const col=up?'#16c784':'#ea3943';
+  const dots=series.map((v,i)=>i===0?'':`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${v>=0?'#16c784':'#ea3943'}"/>`).join('');
+  $('curveChart').innerHTML=`
+    <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="display:block">
+      <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${col}" stop-opacity="0.28"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <line x1="${pad}" y1="${zeroY}" x2="${W-pad}" y2="${zeroY}" stroke="#d2d2d7" stroke-dasharray="4 4"/>
+      <path d="${area}" fill="url(#cg)"/>
+      <path d="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>
+      ${dots}
+      <text x="${pad}" y="${(y(max)-6).toFixed(1)}" fill="#86868b" font-size="12">peak ${max.toFixed(1)}R</text>
+      <text x="${pad}" y="${(y(min)+16).toFixed(1)}" fill="#86868b" font-size="12">low ${min.toFixed(1)}R</text>
+    </svg>`;
+  // max drawdown in R
+  let peak=-Infinity,mdd=0;series.forEach(v=>{peak=Math.max(peak,v);mdd=Math.max(mdd,peak-v);});
+  $('curveSummary').innerHTML=`<span style="color:${col};font-weight:700">${up?'+':''}${cum.toFixed(1)}R</span> over ${pts.length} closed · max drawdown ${mdd.toFixed(1)}R`;
+}
+
+/* ============ PERFORMANCE BY PAIR ============ */
+function renderByPair(){
+  const m={};
+  scopedEntries().forEach(e=>{
+    const k=e.pair||'—';(m[k]=m[k]||{n:0,w:0,l:0,rr:[],r:0,closed:0});
+    const g=m[k];g.n++;
+    const rr=parseFloat(e.rr);if(!isNaN(rr))g.rr.push(rr);
+    if(e.outcome&&e.outcome!=='Open'){g.closed++;const r=autoR(e);if(r!=null)g.r+=r;
+      if(e.outcome==='Win')g.w++;if(e.outcome==='Loss')g.l++;}
+  });
+  const rows=Object.keys(m).sort((a,b)=>m[b].r-m[a].r);
+  $('byPairEmpty').style.display=rows.length?'none':'block';
+  $('byPairCount').textContent=rows.length?rows.length+' pairs':'';
+  $('byPairBody').innerHTML=rows.map(k=>{
+    const g=m[k];const wr=(g.w+g.l)?Math.round(g.w/(g.w+g.l)*100):null;
+    const avg=g.rr.length?(g.rr.reduce((a,b)=>a+b,0)/g.rr.length).toFixed(1):'—';
+    const rc=g.r>0?'var(--green)':g.r<0?'var(--red)':'var(--muted)';
+    return `<tr>
+      <td style="font-weight:600">${k}</td>
+      <td>${g.n}</td>
+      <td>${wr==null?'—':`<span style="color:${wr>=50?'var(--green)':'var(--amber)'};font-weight:600">${wr}%</span>`}</td>
+      <td>${avg==='—'?'—':avg+'R'}</td>
+      <td style="font-weight:700;color:${rc}">${g.closed?(g.r>0?'+':'')+g.r.toFixed(1)+'R':'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============ MONTHLY P&L CALENDAR ============ */
+let calRef=new Date();calRef.setDate(1);
+function renderCalendar(){
+  const y=calRef.getFullYear(),mo=calRef.getMonth();
+  $('calLabel').textContent=calRef.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  // aggregate net R per day for this month
+  const byDay={};let monthR=0,monthTrades=0;
+  scopedEntries().forEach(e=>{
+    if(!e.outcome||e.outcome==='Open')return;
+    const d=new Date(e.date);if(d.getFullYear()!==y||d.getMonth()!==mo)return;
+    const r=autoR(e);if(r==null)return;
+    const day=d.getDate();byDay[day]=byDay[day]||{r:0,n:0};byDay[day].r+=r;byDay[day].n++;
+    monthR+=r;monthTrades++;
+  });
+  $('calNet').innerHTML=monthTrades?`<span style="color:${monthR>=0?'var(--green)':'var(--red)'};font-weight:600">${monthR>0?'+':''}${monthR.toFixed(1)}R</span> · ${monthTrades} trades`:'no closed trades';
+  const first=new Date(y,mo,1).getDay();          // 0=Sun
+  const dim=new Date(y,mo+1,0).getDate();
+  const dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<first;i++)html+='<div class="cal-day blank"></div>';
+  // intensity scaling
+  const mags=Object.values(byDay).map(v=>Math.abs(v.r));const maxMag=Math.max(1,...mags);
+  for(let day=1;day<=dim;day++){
+    const v=byDay[day];
+    let style='',cls='',inner=`<span class="dn">${day}</span>`;
+    if(v){
+      const t=Math.min(1,Math.abs(v.r)/maxMag);const a=(0.18+t*0.55).toFixed(2);
+      const col=v.r>=0?`rgba(45,164,78,${a})`:`rgba(229,72,77,${a})`;
+      cls=v.r>=0?' pos':' neg';
+      style=`background:${col}`;
+      inner+=`<span class="rv">${v.r>0?'+':''}${v.r.toFixed(1)}</span><span class="cnt">${v.n} trade${v.n>1?'s':''}</span>`;
+    }
+    html+=`<div class="cal-day${cls}" style="${style}">${inner}</div>`;
+  }
+  $('calGrid').innerHTML=html;
+}
+function calShift(n){calRef.setMonth(calRef.getMonth()+n);renderCalendar();}
+$('calPrev').onclick=()=>calShift(-1);
+$('calNext').onclick=()=>calShift(1);
+$('calToday').onclick=()=>{calRef=new Date();calRef.setDate(1);renderCalendar();};
+function renderStats(){
+  const E=scopedEntries();
+  const closed=E.filter(e=>e.outcome&&e.outcome!=='Open');
+  const wins=closed.filter(e=>e.outcome==='Win').length;
+  const losses=closed.filter(e=>e.outcome==='Loss').length;
+  const wr=(wins+losses)?Math.round(wins/(wins+losses)*100):0;
+  const rrVals=E.map(e=>parseFloat(e.rr)).filter(n=>!isNaN(n));
+  const avgRR=rrVals.length?(rrVals.reduce((a,b)=>a+b,0)/rrVals.length).toFixed(2):'—';
+  let totalR=0;closed.forEach(e=>{const r=autoR(e);if(r!=null)totalR+=r;});
+  const open=E.filter(e=>!e.outcome||e.outcome==='Open').length;
+  const pairCount={};E.forEach(e=>pairCount[e.pair]=(pairCount[e.pair]||0)+1);
+  const topPair=Object.keys(pairCount).sort((a,b)=>pairCount[b]-pairCount[a])[0]||'—';
+  const cards=[
+    ['Total Trades',E.length,''],
+    ['Win Rate',wr+'%',wins+'W / '+losses+'L'],
+    ['Avg Planned RR',avgRR==='—'?'—':avgRR+'R',''],
+    ['Net Result',(totalR>0?'+':'')+totalR.toFixed(1)+'R',totalR>=0?'in profit (R)':'in drawdown (R)'],
+    ['Open Positions',open,''],
+    ['Most Traded',topPair,topPair!=='—'?pairCount[topPair]+' trades':'']
+  ];
+  $('stats').innerHTML=cards.map((c,i)=>{
+    let color='';
+    if(c[0]==='Net Result')color=totalR>=0?'color:var(--green)':'color:var(--red)';
+    if(c[0]==='Win Rate')color=wr>=50?'color:var(--green)':'color:var(--amber)';
+    return `<div class="stat"><div class="lbl">${c[0]}</div><div class="val" style="${color}">${c[1]}</div><div class="sub">${c[2]}</div></div>`;
+  }).join('');
+}
+$('search').oninput=render;
+$('clearAll').onclick=()=>{if(confirm('Delete ALL trades? This cannot be undone (use Backup first).')){entries=[];save();render();toast('All trades cleared');}};
+
+/* modal */
+$('modalClose').onclick=()=>$('modal').classList.remove('show');
+$('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('show');};
+
+/* ============ BACKUP / RESTORE ============ */
+$('exportBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify(entries,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='trading-journal-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  toast('Backup downloaded ✓');
+};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){entries=d;save();render();toast('Restored '+d.length+' trades ✓');}}catch{toast('Invalid backup file');}};
+  r.readAsText(f);
+};
+
+/* ============================================================
+   MARKET INSIGHT  — live, sourced, timestamped
+   ============================================================ */
+async function jfetch(url){const r=await fetch(url);if(!r.ok)throw new Error(r.status);return r.json();}
+const usd=n=>'$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:n<10?4:0});
+const pct=n=>(n>=0?'+':'')+Number(n).toFixed(2)+'%';
+const C=()=>window.__MARKET_CACHE__||null;            // daily cache (may be null)
+function cacheStamp(){const c=C();return c&&c.updated?new Date(c.updated):null;}
+
+/* ---- PRICES (crypto) ---- */
+function renderPrices(d){
+  const map=[['BTC','bitcoin'],['ETH','ethereum'],['SOL','solana'],['BNB','binancecoin']];
+  $('coins').innerHTML=map.map(([s,id])=>{
+    const p=d[id];if(!p)return'';const c=p.usd_24h_change||0;
+    return `<div class="coin"><div class="nm">${s}</div><div class="px">${usd(p.usd)}</div><div class="ch ${c>=0?'up':'down'}">${pct(c)}</div></div>`;
+  }).join('');
+}
+async function loadPrices(){
+  try{renderPrices(await jfetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true'));}
+  catch{const c=C();if(c&&c.prices)renderPrices(c.prices);else $('coins').innerHTML='<div class="loading">⚠ Price source unavailable right now.</div>';}
+}
+/* ---- GLOBAL crypto market ---- */
+function renderGlobal(g){
+  $('globalMkt').innerHTML=`
+    <div class="mrow"><span class="k">Total market cap</span><span class="v">$${(g.mc/1e12).toFixed(2)}T <span class="${g.ch>=0?'up':'down'}" style="font-size:11px">${pct(g.ch)}</span></span></div>
+    <div class="mrow"><span class="k">BTC dominance</span><span class="v">${g.btcD.toFixed(1)}%</span></div>
+    <div class="mrow"><span class="k">ETH dominance</span><span class="v">${g.ethD.toFixed(1)}%</span></div>`;
+}
+async function loadGlobal(){
+  try{const{data:d}=await jfetch('https://api.coingecko.com/api/v3/global');
+    renderGlobal({mc:d.total_market_cap.usd,ch:d.market_cap_change_percentage_24h_usd,btcD:d.market_cap_percentage.btc,ethD:d.market_cap_percentage.eth});}
+  catch{const c=C();if(c&&c.global)renderGlobal(c.global);}
+}
+/* ---- FOREX (Frankfurter / ECB) ---- */
+function renderForex(list){
+  if(!list||!list.length){$('forex').innerHTML='<div class="loading">⚠ FX source unavailable.</div>';return;}
+  $('forex').innerHTML=list.map(f=>`<div class="mrow"><span class="k">${f.pair}</span><span class="v">${f.rate}${f.change!=null?` <span class="${f.change>=0?'up':'down'}" style="font-size:11px">${pct(f.change)}</span>`:''}</span></div>`).join('');
+}
+async function loadForex(){
+  try{
+    // one timeseries call; take last two business days to compute daily change
+    const start=new Date(Date.now()-9*864e5).toISOString().slice(0,10);
+    const d=await jfetch(`https://api.frankfurter.app/${start}..?from=USD&to=EUR,GBP,JPY,AUD,CAD`);
+    const dates=Object.keys(d.rates).sort();const last=d.rates[dates[dates.length-1]],prev=d.rates[dates[dates.length-2]]||last;
+    const inv=(c)=>({rate:1/last[c],ch:((1/last[c])/(1/prev[c])-1)*100});   // USD per foreign
+    const dir=(c)=>({rate:last[c],ch:(last[c]/prev[c]-1)*100});             // foreign per USD
+    const e=inv('EUR'),g=inv('GBP'),a=inv('AUD'),j=dir('JPY'),cad=dir('CAD');
+    renderForex([
+      {pair:'EUR/USD',rate:e.rate.toFixed(4),change:e.ch},
+      {pair:'GBP/USD',rate:g.rate.toFixed(4),change:g.ch},
+      {pair:'USD/JPY',rate:j.rate.toFixed(2),change:j.ch},
+      {pair:'AUD/USD',rate:a.rate.toFixed(4),change:a.ch},
+      {pair:'USD/CAD',rate:cad.rate.toFixed(4),change:cad.ch}
+    ]);
+  }catch{const c=C();if(c&&c.forex)renderForex(c.forex);else $('forex').innerHTML='<div class="loading">⚠ FX source unavailable.</div>';}
+}
+/* ---- INDICES & COMMODITIES (Stooq; usually CORS-blocked in-browser → daily cache) ---- */
+function renderIndices(list){
+  if(!list||!list.length){$('indices').innerHTML='<div class="loading">Served from daily cache when available — Stooq blocks live browser requests.</div>';return;}
+  $('indices').innerHTML=list.map(x=>`<div class="mrow"><span class="k">${x.name}</span><span class="v">${Number(x.price).toLocaleString('en-US',{maximumFractionDigits:2})}${x.change!=null?` <span class="${x.change>=0?'up':'down'}" style="font-size:11px">${pct(x.change)}</span>`:''}</span></div>`).join('');
+}
+async function loadIndices(){
+  try{
+    const txt=await fetch('https://stooq.com/q/l/?s=^spx+^ndx+^dji+xauusd+cl.f&f=sd2t2ohlc&h&e=csv').then(r=>r.text());
+    const names={'^SPX':'S&P 500','^NDX':'Nasdaq 100','^DJI':'Dow Jones','XAUUSD':'Gold (XAU)','CL.F':'WTI Crude'};
+    const rows=txt.trim().split('\n').slice(1).map(l=>l.split(','));
+    const list=rows.map(c=>{const sym=c[0].toUpperCase();const open=+c[3],close=+c[6];
+      return{name:names[sym]||sym,price:close,change:open?(close-open)/open*100:null};}).filter(x=>!isNaN(x.price));
+    if(!list.length)throw 0;renderIndices(list);
+  }catch{const c=C();if(c&&c.indices)renderIndices(c.indices);else renderIndices(null);}
+}
+function renderFearGreed(v,cls){
+    const col=v<25?'#ea3943':v<45?'#f0b90b':v<55?'#8a93a6':v<75?'#16c784':'#0ecb81';
+    const circ=2*Math.PI*40,off=circ-(v/100)*circ;
+    $('feargreed').innerHTML=`<div class="fg">
+      <div class="fg-circle"><svg width="90" height="90">
+        <circle class="fg-track" cx="45" cy="45" r="40" stroke="#252b3b" stroke-width="8" fill="none"/>
+        <circle cx="45" cy="45" r="40" stroke="${col}" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
+      </svg><div class="fg-num"><b style="color:${col}">${v}</b><small>/ 100</small></div></div>
+      <div><div class="fg-label" style="color:${col}">${cls}</div><div style="font-size:11.5px;color:var(--muted);margin-top:4px">Crowd sentiment proxy. Extreme fear can mark bottoms; extreme greed, tops.</div></div>
+    </div>`;
+}
+async function loadFearGreed(){
+  try{const{data}=await jfetch('https://api.alternative.me/fng/?limit=1');renderFearGreed(+data[0].value,data[0].value_classification);}
+  catch{const c=C();if(c&&c.feargreed)renderFearGreed(+c.feargreed.value,c.feargreed.cls);else $('feargreed').innerHTML='<div class="loading">⚠ Sentiment source unavailable.</div>';}
+}
+// Retail = accounts ratio (crowd by headcount). Fund/whale = top traders by position size.
+function lsBlock(label,d){
+  const rL=d.retail.long, rS=d.retail.short, tL=d.top.long, tS=d.top.short;
+  const bar=(l,s)=>`<div class="bar"><div class="l" style="width:${l}%">${l.toFixed(0)}%</div><div class="s" style="width:${s}%">${s.toFixed(0)}%</div></div>`;
+  const lean=(l,s)=>l>s?`net <b style="color:var(--green)">LONG</b>`:`net <b style="color:var(--red)">SHORT</b>`;
+  return `<div style="margin-bottom:14px"><div style="font-weight:800;font-size:12px;margin-bottom:7px">${label}</div>
+    <div class="ls"><div class="top"><span class="who">🧍 Retail crowd (by accounts)</span><span>${lean(rL,rS)}</span></div>${bar(rL,rS)}</div>
+    <div class="ls"><div class="top"><span class="who">🐳 Top traders / funds (by position)</span><span>${lean(tL,tS)}</span></div>${bar(tL,tS)}</div>
+    ${(rL>rS)!==(tL>tS)?'<div class="note">⚠ Divergence: retail and smart money are positioned on opposite sides.</div>':'<div class="note">Retail and top traders are leaning the same direction.</div>'}
+  </div>`;
+}
+async function loadLongShort(){
+  async function one(ccy,inst){
+    const[acc,top]=await Promise.all([
+      jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=${ccy}&period=1H`),
+      jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=${inst}&period=1H`)
+    ]);
+    const ra=+acc.data[0][1], tp=+top.data[0][1];           // ratio = long/short
+    const rl=ra/(1+ra)*100, tl=tp/(1+tp)*100;
+    return{retail:{long:rl,short:100-rl},top:{long:tl,short:100-tl}};
+  }
+  try{
+    const[btc,eth]=await Promise.all([one('BTC','BTC-USDT-SWAP'),one('ETH','ETH-USDT-SWAP')]);
+    $('longshort').innerHTML=lsBlock('BTC/USDT Perp',btc)+lsBlock('ETH/USDT Perp',eth);
+  }catch{
+    const c=C();
+    if(c&&c.longshort&&c.longshort.BTCUSDT)
+      $('longshort').innerHTML=lsBlock('BTC/USDT Perp',c.longshort.BTCUSDT)+lsBlock('ETH/USDT Perp',c.longshort.ETHUSDT);
+    else $('longshort').innerHTML='<div class="loading">⚠ Positioning source unavailable right now — the daily cache fills this in.</div>';
+  }
+}
+function renderNews(items){
+  $('news').innerHTML=items.slice(0,6).map(n=>{
+    const ago=Math.round((Date.now()/1000-n.published_on)/3600);
+    return `<a href="${n.url}" target="_blank" rel="noopener">${n.title}<div class="meta">${n.source} · ${ago<1?'just now':ago<48?ago+'h ago':Math.round(ago/24)+'d ago'}</div></a>`;
+  }).join('');
+}
+async function loadNews(){
+  try{
+    const d=await jfetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
+    renderNews(d.Data.map(n=>({title:n.title,url:n.url,source:n.source_info.name,published_on:n.published_on})));
+  }catch{const c=C();if(c&&c.news)renderNews(c.news);else $('news').innerHTML='<div class="loading">⚠ News source unavailable.</div>';}
+}
+// Official FOMC meeting dates (decision day) — U.S. Federal Reserve.
+const FOMC_MEETINGS=[
+  ['2025-01-29','FOMC Meeting','Rate decision + statement'],
+  ['2025-03-19','FOMC Meeting','+ Projections (dot plot)'],
+  ['2025-05-07','FOMC Meeting','Rate decision + statement'],
+  ['2025-06-18','FOMC Meeting','+ Projections (dot plot)'],
+  ['2025-07-30','FOMC Meeting','Rate decision + statement'],
+  ['2025-09-17','FOMC Meeting','+ Projections (dot plot)'],
+  ['2025-10-29','FOMC Meeting','Rate decision + statement'],
+  ['2025-12-10','FOMC Meeting','+ Projections (dot plot)'],
+  ['2026-01-28','FOMC Meeting','Rate decision + statement'],
+  ['2026-03-18','FOMC Meeting','+ Projections (dot plot)'],
+  ['2026-04-29','FOMC Meeting','Rate decision + statement'],
+  ['2026-06-17','FOMC Meeting','+ Projections (dot plot)'],
+  ['2026-07-29','FOMC Meeting','Rate decision + statement'],
+  ['2026-09-16','FOMC Meeting','+ Projections (dot plot)'],
+  ['2026-10-28','FOMC Meeting','Rate decision + statement'],
+  ['2026-12-09','FOMC Meeting','+ Projections (dot plot)']
+];
+function loadFOMC(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const upcoming=FOMC_MEETINGS.filter(m=>new Date(m[0])>=now).slice(0,4);
+  if(!upcoming.length){$('fomc').innerHTML='<div class="loading">Calendar will refresh when the Fed publishes new dates.</div>';return;}
+  $('fomc').innerHTML=upcoming.map((m,i)=>{
+    const d=new Date(m[0]);
+    const days=Math.ceil((d-now)/864e5);
+    const countdown=days===0?'Today':days===1?'Tomorrow':'in '+days+' days';
+    return `<div class="fomc-item ${i===0?'next':''}">
+      <div class="fomc-date"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('en-US',{month:'short'})}</div></div>
+      <div class="fomc-info"><div class="t">${m[1]} ${i===0?'· '+countdown:''}</div><div class="c">${m[2]} · ${d.getFullYear()}</div></div>
+    </div>`;
+  }).join('');
+}
+// Instant paint from the daily cache (works offline / before live fetches return)
+function renderFromCache(){
+  const c=C();if(!c)return;
+  if(c.prices)renderPrices(c.prices);
+  if(c.global)renderGlobal(c.global);
+  if(c.forex)renderForex(c.forex);
+  if(c.indices)renderIndices(c.indices);
+  if(c.feargreed)renderFearGreed(+c.feargreed.value,c.feargreed.cls);
+  if(c.longshort&&c.longshort.BTCUSDT)$('longshort').innerHTML=lsBlock('BTC/USDT Perp',c.longshort.BTCUSDT)+lsBlock('ETH/USDT Perp',c.longshort.ETHUSDT);
+  if(c.news)renderNews(c.news);
+  const s=cacheStamp();
+  $('miUpdated').textContent=s?'daily cache '+s.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'';
+}
+async function loadMarket(){
+  $('miUpdated').textContent='updating…';
+  await Promise.allSettled([loadPrices(),loadGlobal(),loadForex(),loadIndices(),loadFearGreed(),loadLongShort(),loadNews()]);
+  loadFOMC();
+  $('miUpdated').textContent='live · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+$('refreshBtn').onclick=loadMarket;
+
+/* ============ THEME (Apple light / dark) ============ */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('tj_theme',t);
+  $('themeToggle').textContent=t==='dark'?'☀️':'🌙';
+}
+applyTheme(localStorage.getItem('tj_theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'));
+$('themeToggle').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+
+/* ============================================================
+   FOMC DOT PLOT & SEP  — verified data, U.S. Federal Reserve
+   Source: SEP released March 18, 2026 (latest published).
+   Update these arrays each quarter from the official SEP.
+   ============================================================ */
+const SEP={
+  asof:'March 18, 2026',
+  source:'U.S. Federal Reserve — Summary of Economic Projections',
+  url:'https://www.federalreserve.gov/monetarypolicy/fomcprojtabl20260318.htm',
+  years:['2026','2027','2028','Longer run'],
+  median:{ffr:[3.4,3.1,3.1,3.1],gdp:[2.4,2.3,2.1,2.0],unemp:[4.4,4.3,4.2,4.2],pce:[2.7,2.2,2.0,2.0],corepce:[2.7,2.2,2.0,null]},
+  dots:{
+    '2026':[[3.625,7],[3.375,7],[3.125,2],[2.875,2],[2.625,1]],
+    '2027':[[3.875,1],[3.625,3],[3.375,4],[3.125,6],[2.875,3],[2.625,1],[2.375,1]],
+    '2028':[[3.875,1],[3.625,3],[3.375,3],[3.125,7],[2.875,3],[2.625,2]],
+    'Longer run':[[3.875,1],[3.750,1],[3.625,1],[3.375,2],[3.250,1],[3.125,3],[3.000,5],[2.875,2],[2.625,2]]
+  }
+};
+function sepMedianLevel(yr){const a=[];SEP.dots[yr].forEach(([r,c])=>{for(let k=0;k<c;k++)a.push(r);});a.sort((x,y)=>x-y);const n=a.length;return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2;}
+function dotPlotSVG(){
+  const yrs=SEP.years,W=920,H=360,L=52,Rp=18,T=16,B=46;
+  const yMin=2.25,yMax=4.0,x0=L,x1=W-Rp,y0=T,y1=H-B,colW=(x1-x0)/yrs.length;
+  const yPx=v=>y1-((v-yMin)/(yMax-yMin))*(y1-y0);
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="dpsvg">`;
+  for(let v=yMin;v<=yMax+1e-9;v+=0.25){const y=yPx(v);
+    s+=`<line class="grid" x1="${x0}" y1="${y.toFixed(1)}" x2="${x1}" y2="${y.toFixed(1)}"/>`;
+    s+=`<text x="${x0-8}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="11">${v.toFixed(2)}%</text>`;}
+  yrs.forEach((yr,i)=>{
+    const cx=x0+colW*(i+0.5);
+    if(i>0){const sx=(x0+colW*i).toFixed(1);s+=`<line class="sep" x1="${sx}" y1="${y0}" x2="${sx}" y2="${y1}" stroke-dasharray="3 5"/>`;}
+    s+=`<text x="${cx.toFixed(1)}" y="${H-14}" text-anchor="middle" font-size="12.5" font-weight="600">${yr}</text>`;
+    SEP.dots[yr].forEach(([rate,cnt])=>{const y=yPx(rate);const gap=Math.min(12,(colW-22)/Math.max(cnt,1));const sx=cx-((cnt-1)*gap)/2;
+      for(let k=0;k<cnt;k++)s+=`<circle class="dot" cx="${(sx+k*gap).toFixed(1)}" cy="${y.toFixed(1)}" r="3.6"/>`;});
+    const my=yPx(sepMedianLevel(yr));
+    s+=`<line class="med" x1="${(cx-colW*0.34).toFixed(1)}" y1="${my.toFixed(1)}" x2="${(cx+colW*0.34).toFixed(1)}" y2="${my.toFixed(1)}" stroke-width="2.5"/>`;
+    s+=`<text class="medlbl" x="${cx.toFixed(1)}" y="${(my-7).toFixed(1)}" text-anchor="middle" font-size="11">${SEP.median.ffr[i].toFixed(2)}%</text>`;
+  });
+  return s+'</svg>';
+}
+function renderSEP(){
+  $('dotplot').innerHTML=dotPlotSVG();
+  const rows=[['Federal funds rate','ffr'],['Real GDP growth','gdp'],['Unemployment rate','unemp'],['PCE inflation','pce'],['Core PCE inflation','corepce']];
+  let t=`<table class="sep-table"><thead><tr><th>Median projection</th>${SEP.years.map(y=>`<th style="text-align:right">${y}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(r=>{t+=`<tr><td>${r[0]}</td>${SEP.median[r[1]].map(v=>`<td style="text-align:right;font-weight:600">${v==null?'—':v.toFixed(1)+'%'}</td>`).join('')}</tr>`;});
+  $('sepTable').innerHTML=t+'</tbody></table>';
+  $('sepAsof').textContent='as of '+SEP.asof;
+  $('sepMeta').innerHTML=`Source: <a href="${SEP.url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">${SEP.source}</a>, released ${SEP.asof} (latest published). The SEP &amp; dot plot are updated quarterly — Mar / Jun / Sep / Dec.`;
+  renderRateExpectations();
+}
+
+/* ============ RATE EXPECTATIONS ============ */
+// Current target range — set at FOMC meetings (~8/yr). Verified, dated, sourced.
+const POLICY={
+  asof:'April 29, 2026', low:3.50, high:3.75,
+  source:'FOMC statement', url:'https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm'
+};
+function renderRateExpectations(){
+  const mid=(POLICY.low+POLICY.high)/2;
+  const med26=SEP.median.ffr[0];                 // Fed's end-2026 median
+  const cuts=Math.round((mid-med26)/0.25);        // 25bp moves implied by the dots
+  const path=cuts>0?`${cuts} cut${cuts>1?'s':''} (−${(cuts*25)}bp)`:cuts<0?`${-cuts} hike${cuts<-1?'s':''} (+${(-cuts*25)}bp)`:'on hold';
+  // next FOMC
+  const now=new Date();now.setHours(0,0,0,0);
+  const next=FOMC_MEETINGS.map(m=>m[0]).filter(d=>new Date(d)>=now)[0];
+  const ndays=next?Math.ceil((new Date(next)-now)/864e5):null;
+  const tiles=[
+    ['Current target range',`${POLICY.low.toFixed(2)}–${POLICY.high.toFixed(2)}%`,`held · as of ${POLICY.asof}`],
+    ['Rate midpoint',`${mid.toFixed(3)}%`,'effective policy level'],
+    ['Fed projects by end-2026',`${med26.toFixed(2)}%`,`dots imply ${path}`],
+    ['Longer-run median',`${SEP.median.ffr[3].toFixed(2)}%`,"Fed's neutral estimate"],
+    ['Next FOMC',next?new Date(next).toLocaleDateString('en-US',{day:'numeric',month:'short'}):'—',ndays!=null?(ndays===0?'today':'in '+ndays+' days'):'']
+  ];
+  $('rateTiles').innerHTML=tiles.map(t=>`<div class="rate-tile"><div class="lbl">${t[0]}</div><div class="val">${t[1]}</div><div class="sub">${t[2]}</div></div>`).join('');
+}
+
+/* ============ ECONOMIC CALENDAR ============ */
+// CPI & jobs report = official BLS 2026 release dates. FOMC minutes = meeting + 3 weeks.
+const ECON_FIXED=[
+  ['2026-07-14','CPI — Jun data','cpi'],['2026-08-12','CPI — Jul data','cpi'],['2026-09-11','CPI — Aug data','cpi'],
+  ['2026-10-14','CPI — Sep data','cpi'],['2026-11-10','CPI — Oct data','cpi'],['2026-12-10','CPI — Nov data','cpi'],
+  ['2026-07-02','Jobs report (NFP) — Jun','nfp'],['2026-08-07','Jobs report (NFP) — Jul','nfp'],['2026-09-04','Jobs report (NFP) — Aug','nfp'],
+  ['2026-10-02','Jobs report (NFP) — Sep','nfp'],['2026-11-06','Jobs report (NFP) — Oct','nfp'],['2026-12-04','Jobs report (NFP) — Nov','nfp'],
+  ['2026-06-25','PCE inflation — May','pce'],['2026-07-30','PCE inflation — Jun','pce'],['2026-08-26','PCE inflation — Jul','pce'],
+  ['2026-09-30','PCE inflation — Aug','pce'],['2026-10-29','PCE inflation — Sep','pce'],['2026-11-25','PCE inflation — Oct','pce'],['2026-12-23','PCE inflation — Nov','pce']
+];
+const ECON_META={cpi:{i:'📊',t:'8:30am ET · BLS'},nfp:{i:'💼',t:'8:30am ET · BLS'},pce:{i:'💵',t:'8:30am ET · BEA'},fomc:{i:'🏦',t:'2:00pm ET · Fed'},minutes:{i:'📝',t:'2:00pm ET · Fed'}};
+function renderEconCal(){
+  const now=new Date();now.setHours(0,0,0,0);
+  let events=ECON_FIXED.map(e=>({d:e[0],t:e[1],k:e[2]}));
+  // FOMC rate decisions + minutes (minutes released ~3 weeks after the meeting)
+  FOMC_MEETINGS.forEach(m=>{
+    events.push({d:m[0],t:'FOMC rate decision',k:'fomc'});
+    const min=new Date(m[0]);min.setDate(min.getDate()+21);
+    events.push({d:min.toISOString().slice(0,10),t:'FOMC minutes',k:'minutes'});
+  });
+  events=events.filter(e=>new Date(e.d)>=now).sort((a,b)=>new Date(a.d)-new Date(b.d)).slice(0,7);
+  if(!events.length){$('econcal').innerHTML='<div class="loading">No upcoming events scheduled.</div>';return;}
+  $('econcal').innerHTML=events.map((e,idx)=>{
+    const d=new Date(e.d);const days=Math.ceil((d-now)/864e5);
+    const when=days===0?'Today':days===1?'Tomorrow':'in '+days+'d';
+    const meta=ECON_META[e.k];
+    return `<div class="econ-item ${idx===0?'soon':''}">
+      <div class="econ-ico">${meta.i}</div>
+      <div class="econ-info"><div class="t">${e.t}</div><div class="c">${d.toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short'})} · ${meta.t}</div></div>
+      <div class="econ-when">${when}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ INIT ============ */
+render();
+renderSEP();         // FOMC dot plot + projections + rate expectations (verified Fed data)
+renderEconCal();     // CPI / jobs / FOMC minutes (BLS + Fed schedules)
+renderFromCache();   // show last daily snapshot immediately
+loadFOMC();          // FOMC schedule is local data — always available
+loadMarket();        // then refresh live
+setInterval(loadMarket,5*60*1000); // auto-refresh every 5 min while open
+</script>
+
+<script>
+/* Register service worker so the app installs & works offline on iPhone/iPad (only active when hosted over https). */
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
