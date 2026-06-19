@@ -1,7 +1,8 @@
-/* Service worker — makes the dashboard installable & usable offline on iPhone/iPad.
-   App shell is cached; market-cache.js is network-first so daily data stays fresh;
-   external API calls (CoinGecko, OKX, etc.) always go to the network. */
-const CACHE = 'tj-cache-v3';
+/* Service worker — installable & offline on iPhone/iPad.
+   The page (index.html) and market-cache.js are NETWORK-FIRST so you always get
+   the latest version when online (falling back to cache offline). Icons/manifest
+   are cache-first. External API calls (CoinGecko, OKX, TradingView) hit the network. */
+const CACHE = 'tj-cache-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
@@ -13,19 +14,26 @@ self.addEventListener('activate', e => {
     Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
   ).then(() => self.clients.claim()));
 });
+
+function networkFirst(req) {
+  return fetch(req).then(r => {
+    const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); return r;
+  }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')));
+}
+function cacheFirst(req) {
+  return caches.match(req).then(r => r || fetch(req).then(resp => {
+    const c = resp.clone(); caches.open(CACHE).then(x => x.put(req, c)); return resp;
+  }));
+}
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return; // let external API calls hit the network directly
-  if (url.pathname.endsWith('market-cache.js')) {
-    // network-first for fresh daily data, fall back to cache offline
-    e.respondWith(
-      fetch(e.request).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; })
-        .catch(() => caches.match(e.request))
-    );
-    return;
+  if (url.origin !== location.origin) return; // external APIs go straight to network
+  const isPage = e.request.mode === 'navigate'
+    || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+  if (isPage || url.pathname.endsWith('market-cache.js')) {
+    e.respondWith(networkFirst(e.request));   // always latest when online
+  } else {
+    e.respondWith(cacheFirst(e.request));     // icons, manifest, etc.
   }
-  // cache-first for the app shell
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-    const c = resp.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return resp;
-  }).catch(() => r)));
 });

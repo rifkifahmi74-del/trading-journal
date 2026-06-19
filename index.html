@@ -264,9 +264,9 @@
   .tv-picks button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:7px 13px;border-radius:980px;cursor:pointer;font-size:12.5px;font-weight:500;transition:.15s}
   .tv-picks button:hover{border-color:var(--accent)}
   .tv-picks button.on{background:var(--accent);color:#fff;border-color:transparent}
-  #tvChart{height:720px;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
-  @media(max-width:900px){#tvChart{height:560px}}
-  @media(max-width:560px){#tvChart{height:460px}}
+  #tvChart{height:82vh;min-height:640px;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+  @media(max-width:900px){#tvChart{height:75vh;min-height:520px}}
+  @media(max-width:560px){#tvChart{height:72vh;min-height:440px}}
 
   /* long/short positioning heatmap */
   .hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px}
@@ -1187,21 +1187,25 @@ const TV_PICKS=[['BTC','BINANCE:BTCUSDT'],['ETH','BINANCE:ETHUSDT'],['SOL','BINA
 let tvSymbol='BINANCE:BTCUSDT';
 function buildChart(sym){
   tvSymbol=sym;window.__tvSymbol=sym;
-  const c=$('tvChart');if(!c)return;
-  c.classList.add('tradingview-widget-container');
-  c.innerHTML='<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>';
+  const c=$('tvChart');if(!c||!window.TradingView||!TradingView.widget)return;
+  c.innerHTML='';
   const theme=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
-  const s=document.createElement('script');
-  s.type='text/javascript';s.async=true;
-  s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  s.text=JSON.stringify({autosize:true,symbol:sym,interval:'60',timezone:'Etc/UTC',theme:theme,style:'1',locale:'en',allow_symbol_change:true,calendar:false,support_host:'https://www.tradingview.com'});
-  c.appendChild(s);
+  new TradingView.widget({
+    autosize:true, symbol:sym, interval:'60', timezone:'Etc/UTC', theme:theme,
+    style:'1', locale:'en', enable_publishing:false, allow_symbol_change:true,
+    hide_side_toolbar:false, withdateranges:true, container_id:'tvChart'
+  });
   document.querySelectorAll('#tvPicks button').forEach(b=>b.classList.toggle('on',b.dataset.sym===sym));
 }
 function initChart(){
   $('tvPicks').innerHTML=TV_PICKS.map(p=>`<button data-sym="${p[1]}">${p[0]}</button>`).join('');
   document.querySelectorAll('#tvPicks button').forEach(b=>b.onclick=()=>buildChart(b.dataset.sym));
-  buildChart(tvSymbol);
+  if(window.TradingView&&TradingView.widget){buildChart(tvSymbol);return;}
+  const lib=document.createElement('script');
+  lib.src='https://s3.tradingview.com/tv.js';
+  lib.onload=()=>buildChart(tvSymbol);
+  lib.onerror=()=>{$('tvChart').innerHTML='<div class="loading" style="padding:24px">⚠ Could not load TradingView (check your connection), then press Refresh market.</div>';};
+  document.head.appendChild(lib);
 }
 
 /* ============ LONG/SHORT POSITIONING HEATMAP (OKX) ============ */
