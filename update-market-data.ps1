@@ -58,6 +58,29 @@ $cache.longshort = Try-Step 'longshort' {
   [ordered]@{ BTCUSDT = (Get-Positioning 'BTC' 'BTC-USDT-SWAP'); ETHUSDT = (Get-Positioning 'ETH' 'ETH-USDT-SWAP') }
 }
 
+# ---- Long/short positioning heatmap across top coins (OKX) ----
+$cache.lsheatmap = Try-Step 'lsheatmap' {
+  $coins = @(
+    @{c='BTC';i='BTC-USDT-SWAP'},@{c='ETH';i='ETH-USDT-SWAP'},@{c='SOL';i='SOL-USDT-SWAP'},@{c='XRP';i='XRP-USDT-SWAP'},
+    @{c='DOGE';i='DOGE-USDT-SWAP'},@{c='BNB';i='BNB-USDT-SWAP'},@{c='ADA';i='ADA-USDT-SWAP'},@{c='AVAX';i='AVAX-USDT-SWAP'}
+  )
+  $out = @()
+  foreach ($x in $coins) {
+    for ($try=0; $try -lt 2; $try++) {
+      try {
+        $acc = Invoke-RestMethod "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=$($x.c)&period=1H"
+        Start-Sleep -Milliseconds 250
+        $top = Invoke-RestMethod "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=$($x.i)&period=1H"
+        $ra = [double]$acc.data[0][1]; $tp = [double]$top.data[0][1]
+        $out += [ordered]@{ coin=$x.c; retail=[math]::Round($ra/(1+$ra)*100,1); top=[math]::Round($tp/(1+$tp)*100,1) }
+        break
+      } catch { Start-Sleep -Milliseconds 600 }
+    }
+    Start-Sleep -Milliseconds 250
+  }
+  $out
+}
+
 # ---- Forex (Frankfurter / ECB): latest vs previous business day ----
 $cache.forex = Try-Step 'forex' {
   $lat  = Invoke-RestMethod 'https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,AUD,CAD'

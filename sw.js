@@ -1,7 +1,7 @@
 /* Service worker — makes the dashboard installable & usable offline on iPhone/iPad.
    App shell is cached; market-cache.js is network-first so daily data stays fresh;
    external API calls (CoinGecko, OKX, etc.) always go to the network. */
-const CACHE = 'tj-cache-v1';
+const CACHE = 'tj-cache-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 

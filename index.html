@@ -258,6 +258,27 @@
   .econ-when{font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
   .econ-item.soon{background:rgba(0,113,227,.07);margin:0 -10px;padding:9px 10px;border-radius:10px;border-bottom:none}
   .econ-item.soon .econ-when{color:var(--accent);font-weight:600}
+
+  /* TradingView live chart */
+  .tv-picks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tv-picks button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:7px 13px;border-radius:980px;cursor:pointer;font-size:12.5px;font-weight:500;transition:.15s}
+  .tv-picks button:hover{border-color:var(--accent)}
+  .tv-picks button.on{background:var(--accent);color:#fff;border-color:transparent}
+  #tvChart{height:720px;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+  @media(max-width:900px){#tvChart{height:560px}}
+  @media(max-width:560px){#tvChart{height:460px}}
+
+  /* long/short positioning heatmap */
+  .hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px}
+  .hm-cell{border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--panel)}
+  .hm-coin{font-weight:700;font-size:14px;margin-bottom:9px;display:flex;align-items:center;justify-content:space-between}
+  .hm-coin .dv{font-size:9.5px;font-weight:700;color:var(--amber)}
+  .hm-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .hm-row:last-child{margin-bottom:0}
+  .hm-row .who{font-size:11px;color:var(--muted)}
+  .hm-pill{font-size:12px;font-weight:700;padding:2px 9px;border-radius:980px;min-width:52px;text-align:center}
+  .hm-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:14px;align-items:center}
+  .hm-legend i{display:inline-block;width:34px;height:11px;border-radius:4px;margin-right:5px;vertical-align:-1px;background:linear-gradient(90deg,rgba(229,72,77,.75),rgba(134,134,139,.25),rgba(45,164,78,.75))}
 </style>
 </head>
 <body>
@@ -302,6 +323,15 @@
     </div>
   </div>
 
+  <!-- LIVE CHART (TradingView) -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd"><h2>📊 Live Chart <span class="tag">TradingView</span></h2><span class="updated">real-time · use the search box in the chart for any symbol</span></div>
+    <div class="bd">
+      <div class="tv-picks" id="tvPicks"></div>
+      <div id="tvChart"></div>
+    </div>
+  </div>
+
   <!-- PER-PAIR + CALENDAR -->
   <div class="dual">
     <div class="card">
@@ -325,6 +355,21 @@
         </div>
         <div class="cal-grid" id="calGrid"></div>
         <div class="cal-legend"><span><i style="background:rgba(45,164,78,.55)"></i>Green day</span><span><i style="background:rgba(229,72,77,.5)"></i>Red day</span><span><i style="background:var(--panel-2)"></i>No trades</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LONG/SHORT POSITIONING HEATMAP -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd">
+      <h2>🔥 Long/Short Positioning Heatmap <span class="tag">Perps</span></h2>
+      <span class="updated" id="hmUpdated">OKX</span>
+    </div>
+    <div class="bd">
+      <div class="hm-grid" id="heatmap"><div class="loading">Loading positioning…</div></div>
+      <div class="hm-legend">
+        <span><i></i>more short ⟶ more long (% net long)</span>
+        <span>🧍 Retail (accounts) vs 🐳 Funds (top traders by position) · <span class="dv" style="color:var(--amber);font-weight:700">DIV</span> = they disagree</span>
       </div>
     </div>
   </div>
@@ -1005,12 +1050,13 @@ function renderFromCache(){
   if(c.feargreed)renderFearGreed(+c.feargreed.value,c.feargreed.cls);
   if(c.longshort&&c.longshort.BTCUSDT)$('longshort').innerHTML=lsBlock('BTC/USDT Perp',c.longshort.BTCUSDT)+lsBlock('ETH/USDT Perp',c.longshort.ETHUSDT);
   if(c.news)renderNews(c.news);
+  if(c.lsheatmap)renderHeatmap(c.lsheatmap);
   const s=cacheStamp();
   $('miUpdated').textContent=s?'daily cache '+s.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'';
 }
 async function loadMarket(){
   $('miUpdated').textContent='updating…';
-  await Promise.allSettled([loadPrices(),loadGlobal(),loadForex(),loadIndices(),loadFearGreed(),loadLongShort(),loadNews()]);
+  await Promise.allSettled([loadPrices(),loadGlobal(),loadForex(),loadIndices(),loadFearGreed(),loadLongShort(),loadNews(),loadHeatmap()]);
   loadFOMC();
   $('miUpdated').textContent='live · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
@@ -1021,6 +1067,7 @@ function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   localStorage.setItem('tj_theme',t);
   $('themeToggle').textContent=t==='dark'?'☀️':'🌙';
+  if(window.__tvSymbol)buildChart(window.__tvSymbol); // rebuild chart in new theme
 }
 applyTheme(localStorage.getItem('tj_theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'));
 $('themeToggle').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
@@ -1134,13 +1181,76 @@ function renderEconCal(){
   }).join('');
 }
 
+/* ============ TRADINGVIEW LIVE CHART ============ */
+const TV_PICKS=[['BTC','BINANCE:BTCUSDT'],['ETH','BINANCE:ETHUSDT'],['SOL','BINANCE:SOLUSDT'],
+  ['EUR/USD','FX:EURUSD'],['Gold','OANDA:XAUUSD'],['S&P 500','FOREXCOM:SPXUSD']];
+let tvSymbol='BINANCE:BTCUSDT';
+function buildChart(sym){
+  tvSymbol=sym;window.__tvSymbol=sym;
+  const c=$('tvChart');if(!c)return;
+  c.classList.add('tradingview-widget-container');
+  c.innerHTML='<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>';
+  const theme=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+  const s=document.createElement('script');
+  s.type='text/javascript';s.async=true;
+  s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.text=JSON.stringify({autosize:true,symbol:sym,interval:'60',timezone:'Etc/UTC',theme:theme,style:'1',locale:'en',allow_symbol_change:true,calendar:false,support_host:'https://www.tradingview.com'});
+  c.appendChild(s);
+  document.querySelectorAll('#tvPicks button').forEach(b=>b.classList.toggle('on',b.dataset.sym===sym));
+}
+function initChart(){
+  $('tvPicks').innerHTML=TV_PICKS.map(p=>`<button data-sym="${p[1]}">${p[0]}</button>`).join('');
+  document.querySelectorAll('#tvPicks button').forEach(b=>b.onclick=()=>buildChart(b.dataset.sym));
+  buildChart(tvSymbol);
+}
+
+/* ============ LONG/SHORT POSITIONING HEATMAP (OKX) ============ */
+const HM_COINS=[['BTC','BTC-USDT-SWAP'],['ETH','ETH-USDT-SWAP'],['SOL','SOL-USDT-SWAP'],['XRP','XRP-USDT-SWAP'],
+  ['DOGE','DOGE-USDT-SWAP'],['BNB','BNB-USDT-SWAP'],['ADA','ADA-USDT-SWAP'],['AVAX','AVAX-USDT-SWAP']];
+function hmColor(l){
+  if(l>=50){const t=Math.min(1,(l-50)/25);return `rgba(45,164,78,${(0.16+t*0.64).toFixed(2)})`;}
+  const t=Math.min(1,(50-l)/25);return `rgba(229,72,77,${(0.16+t*0.64).toFixed(2)})`;
+}
+function renderHeatmap(list){
+  if(!list||!list.length){$('heatmap').innerHTML='<div class="loading">Positioning unavailable right now.</div>';return;}
+  $('heatmap').innerHTML=list.map(c=>{
+    const div=(c.retail>=50)!==(c.top>=50);
+    return `<div class="hm-cell">
+      <div class="hm-coin">${c.coin}${div?'<span class="dv">⚠ DIV</span>':''}</div>
+      <div class="hm-row"><span class="who">🧍 Retail</span><span class="hm-pill" style="background:${hmColor(c.retail)}">${c.retail.toFixed(0)}%</span></div>
+      <div class="hm-row"><span class="who">🐳 Funds</span><span class="hm-pill" style="background:${hmColor(c.top)}">${c.top.toFixed(0)}%</span></div>
+    </div>`;
+  }).join('');
+}
+async function loadHeatmap(){
+  // Prefer the daily cache (reliable, all coins). OKX rate-limits rapid bursts,
+  // so only fetch live (sequentially) when there's no cache.
+  const cached=C();
+  if(cached&&cached.lsheatmap&&cached.lsheatmap.length){
+    renderHeatmap(cached.lsheatmap);$('hmUpdated').textContent='OKX · daily cache';return;
+  }
+  const out=[];
+  for(const [coin,inst] of HM_COINS){
+    try{
+      const acc=await jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=${coin}&period=1H`);
+      const top=await jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=${inst}&period=1H`);
+      const ra=+acc.data[0][1], tp=+top.data[0][1];
+      out.push({coin,retail:ra/(1+ra)*100,top:tp/(1+tp)*100});
+    }catch{}
+    await new Promise(r=>setTimeout(r,180));
+  }
+  if(out.length){renderHeatmap(out);$('hmUpdated').textContent='OKX · live';}
+  else $('heatmap').innerHTML='<div class="loading">⚠ Positioning unavailable — enable the daily cache (GitHub Action) to populate this.</div>';
+}
+
 /* ============ INIT ============ */
 render();
 renderSEP();         // FOMC dot plot + projections + rate expectations (verified Fed data)
 renderEconCal();     // CPI / jobs / FOMC minutes (BLS + Fed schedules)
+initChart();         // TradingView live chart
 renderFromCache();   // show last daily snapshot immediately
 loadFOMC();          // FOMC schedule is local data — always available
-loadMarket();        // then refresh live
+loadMarket();        // then refresh live (incl. heatmap)
 setInterval(loadMarket,5*60*1000); // auto-refresh every 5 min while open
 </script>
 
