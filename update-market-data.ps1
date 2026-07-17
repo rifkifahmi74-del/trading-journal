@@ -31,6 +31,16 @@ function YFetch($sym, $interval, $range) {
   }
   ,$bars
 }
+function OKXFetch($instId, $bar, $limit) {
+  $r = Invoke-RestMethod "https://www.okx.com/api/v5/market/candles?instId=$instId&bar=$bar&limit=$limit" -TimeoutSec 25
+  if ($r.code -ne '0') { throw "okx $($r.msg)" }
+  $bars = @()   # OKX returns newest-first -> reverse to oldest-first
+  for ($i = $r.data.Count - 1; $i -ge 0; $i--) {
+    $d = $r.data[$i]
+    $bars += [pscustomobject]@{ o=[double]$d[1]; h=[double]$d[2]; l=[double]$d[3]; c=[double]$d[4]; v=[double]$d[5] }
+  }
+  ,$bars
+}
 function Agg($bars, $g) {
   $out = @()
   for ($i = 0; $i -lt $bars.Count; $i += $g) {
@@ -188,17 +198,19 @@ $cache.news = Try-Step 'news' {
   $items | Sort-Object { $_.published_on } -Descending | Select-Object -First 8
 }
 
-# ---- MACRO DESK: multi-timeframe regime, bearing & flow computed from price action ----
+# ---- MACRO DESK: multi-timeframe regime, bearing, flow & bias computed from price action ----
+# Crypto via OKX candles (native, works on user's network); commodities via Yahoo Finance.
 $cache.macrodesk = Try-Step 'macrodesk' {
   $assets = @(
-    @{ n='XAU/USD'; y='GC=F' }, @{ n='DXY'; y='DX-Y.NYB' }, @{ n='BTC/USD'; y='BTC-USD' },
-    @{ n='ETH/USD'; y='ETH-USD' }, @{ n='SPX 500'; y='^GSPC' }, @{ n='EUR/USD'; y='EURUSD=X' }
+    @{ n='XAU/USD'; src='Y'; s='GC=F' }, @{ n='Silver'; src='Y'; s='SI=F' }, @{ n='WTI Oil'; src='Y'; s='CL=F' },
+    @{ n='BTC/USD'; src='O'; s='BTC-USDT' }, @{ n='ETH/USD'; src='O'; s='ETH-USDT' }, @{ n='SOL/USD'; src='O'; s='SOL-USDT' },
+    @{ n='HYPE/USD'; src='O'; s='HYPE-USDT' }, @{ n='LIT/USD'; src='O'; s='LIT-USDT' }
   )
   $out = @()
   foreach ($a in $assets) {
     try {
-      $m15 = YFetch $a.y '15m' '5d'; Start-Sleep -Milliseconds 200
-      $d1  = YFetch $a.y '1d'  '6mo'
+      if ($a.src -eq 'O') { $m15 = OKXFetch $a.s '15m' 300; Start-Sleep -Milliseconds 220; $d1 = OKXFetch $a.s '1D' 300 }
+      else                { $m15 = YFetch  $a.s '15m' '5d'; Start-Sleep -Milliseconds 200; $d1 = YFetch  $a.s '1d' '6mo' }
       if ($m15.Count -lt 40 -or $d1.Count -lt 30) { continue }
       $b30 = Agg $m15 2; $b1h = Agg $m15 4; $b4h = Agg $m15 16
       $rd = TFRegime $d1
@@ -212,15 +224,36 @@ $cache.macrodesk = Try-Step 'macrodesk' {
       for ($i=1; $i -lt $dc.Count; $i++) { $e = $dc[$i]*$k + $e*(1-$k); $ema += $e }
       $side = [math]::Sign($dc[-1] - $ema[-1]); $days = 0
       for ($i = $dc.Count-1; $i -ge 0; $i--) { if ($side -ne 0 -and [math]::Sign($dc[$i]-$ema[$i]) -eq $side) { $days++ } else { break } }
+      # market bias: BULLISH/BEARISH/NEUTRAL + confidence, from daily dir + timeframe alignment + efficiency
+      $alc = (@($tfs | Where-Object { $_.aligned }).Count); $pulse = if ($tfs.Count) { [math]::Round(100*$alc/$tfs.Count) } else { 0 }
+      $ern = [math]::Min(1, $rd.er/0.6)
+      if ($rd.dir -eq 0 -or $rd.er -lt 0.28 -or $pulse -lt 50) { $bias='NEUTRAL'; $conf=[math]::Max(25,[math]::Round(45 - $rd.er*30)) }
+      else { $bias = if ($rd.dir -gt 0) { 'BULLISH' } else { 'BEARISH' }; $conf=[math]::Min(95,[math]::Round(40 + 0.35*$pulse + 25*$ern)) }
       $out += [ordered]@{
         sym=$a.n; price=[math]::Round($dc[-1], $(if ($dc[-1] -lt 10) { 4 } else { 2 }))
         chg=[math]::Round(($dc[-1]/$dc[-2]-1)*100, 2); daily=$rd.label; bearing=$rd.bearing
-        er=$rd.er; days=$days; tfs=$tfs; flow=(FlowState $b1h)
+        er=$rd.er; days=$days; tfs=$tfs; flow=(FlowState $b1h); bias=$bias; conf=$conf; pulse=$pulse
       }
     } catch { }
     Start-Sleep -Milliseconds 250
   }
   $out
+}
+
+# ---- RISK APPETITE: 0-100 score from the cross-asset board (risk assets vs safe haven) ----
+$cache.risk = Try-Step 'risk' {
+  $md = $cache.macrodesk; if (-not $md) { return $null }
+  function DScore($i) { $d = if ($i.bearing -eq 'UP') { 1 } elseif ($i.bearing -eq 'DOWN') { -1 } else { 0 }; $d * ($i.conf/100) }
+  $riskN = @('BTC/USD','ETH/USD','SOL/USD','HYPE/USD','LIT/USD','WTI Oil'); $safeN = @('XAU/USD')
+  $r = @($md | Where-Object { $riskN -contains $_.sym }); $s = @($md | Where-Object { $safeN -contains $_.sym })
+  $ra = if ($r.Count) { ($r | ForEach-Object { DScore $_ } | Measure-Object -Average).Average } else { 0 }
+  $sa = if ($s.Count) { ($s | ForEach-Object { DScore $_ } | Measure-Object -Average).Average } else { 0 }
+  $score = [math]::Max(2, [math]::Min(98, [math]::Round(50 + ($ra - 0.55*$sa)*40)))
+  $label = if ($score -ge 60) { 'RISK-ON' } elseif ($score -le 40) { 'RISK-OFF' } else { 'NEUTRAL' }
+  $bull = @($md | Where-Object { $_.bias -eq 'BULLISH' }).Count
+  $bear = @($md | Where-Object { $_.bias -eq 'BEARISH' }).Count
+  $neut = @($md | Where-Object { $_.bias -eq 'NEUTRAL' }).Count
+  [ordered]@{ score=$score; label=$label; bull=$bull; bear=$bear; neut=$neut }
 }
 
 # ---- INSTITUTIONAL FEED: free macro/research aggregation (RSS, source-linked) ----
