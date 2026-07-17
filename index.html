@@ -329,6 +329,32 @@
   .md-ev .evt{flex:1}
   .md-ev .evw{color:var(--muted);font-size:11.5px}
 
+  /* PIN lock screen */
+  .lockscreen{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:24px;text-align:center}
+  .lockscreen.show{display:flex}
+  .lockscreen .lg{width:60px;height:60px;border-radius:17px;background:linear-gradient(135deg,#0a84ff,#0058d0);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;box-shadow:0 6px 18px rgba(10,132,255,.35)}
+  .lockscreen h2{font-size:19px;font-weight:700}
+  .lockscreen p{font-size:13px;color:var(--muted);margin-top:-8px}
+  .lockscreen input{font-size:26px;letter-spacing:10px;text-align:center;width:200px;padding:13px;border-radius:14px}
+  .lockscreen .err{color:var(--red);font-size:13px;min-height:16px;font-weight:500}
+  .lockscreen button{min-width:200px}
+
+  /* Sync modal */
+  .sync-card{background:var(--panel);border-radius:20px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);max-height:88vh;overflow:auto}
+  .sync-card .sh{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border)}
+  .sync-card .sh h2{font-size:16px;font-weight:700}
+  .sync-card .sb{padding:20px}
+  .sync-sec{margin-bottom:18px}
+  .sync-sec:last-child{margin-bottom:0}
+  .sync-sec .lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px}
+  .sync-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px;padding:7px 0}
+  .sync-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--panel-2);padding:10px 12px;border-radius:10px;word-break:break-all;user-select:all;margin-top:6px}
+  .sync-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px}
+  .sync-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+  .sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600}
+  .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .sync-dot.on{background:var(--green)}
+
   /* Institutional Feed */
   .inst-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
   .inst-filter button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:5px 12px;border-radius:980px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
@@ -360,6 +386,7 @@
     <div class="top-actions">
       <button class="btn ghost" id="themeToggle" title="Toggle light / dark">🌙</button>
       <button class="btn ghost" id="refreshBtn">⟳ Refresh market</button>
+      <button class="btn" id="syncBtn" title="Cross-device sync">☁️ Sync</button>
       <button class="btn" id="exportBtn">⭳ Backup</button>
       <button class="btn" id="importBtn">⭱ Restore</button>
       <input type="file" id="importFile" accept="application/json" style="display:none">
@@ -660,6 +687,25 @@
 </div>
 
 <div class="modal" id="modal"><button class="close" id="modalClose">&times;</button><img id="modalImg"></div>
+
+<!-- PIN lock screen -->
+<div class="lockscreen" id="lockScreen">
+  <div class="lg">🔒</div>
+  <h2>Trading Journal locked</h2>
+  <p id="lockSub">Enter your PIN to unlock</p>
+  <input type="password" inputmode="numeric" id="lockInput" maxlength="8" autocomplete="off">
+  <div class="err" id="lockErr"></div>
+  <button class="btn primary" id="lockUnlock">Unlock</button>
+</div>
+
+<!-- Sync modal -->
+<div class="modal" id="syncModal">
+  <div class="sync-card">
+    <div class="sh"><h2>☁️ Cross-device Sync</h2><button class="close" id="syncClose" style="position:static;background:var(--panel-2);color:var(--text);width:32px;height:32px;font-size:20px">&times;</button></div>
+    <div class="sb" id="syncBody"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Daily cache written by update-market-data.ps1 (Task Scheduler). Optional: page works live without it. -->
@@ -671,7 +717,7 @@
 const KEY='tj_entries_v1';
 let entries=JSON.parse(localStorage.getItem(KEY)||'[]');
 let pendingImg=null;
-const save=()=>localStorage.setItem(KEY,JSON.stringify(entries));
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(entries));if(typeof scheduleSync==='function')scheduleSync();};
 const $=id=>document.getElementById(id);
 const fmt=n=>n==null||n===''?'—':n;
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
@@ -729,7 +775,8 @@ $('tradeForm').onsubmit=e=>{
     rmult:$('rmult').value,
     tag:$('tag').value.trim(),
     reason:$('reason').value,
-    img:pendingImg
+    img:pendingImg,
+    updatedAt:Date.now()
   };
   if(id){const i=entries.findIndex(x=>x.id===id);entries[i]=obj;toast('Trade updated ✓');}
   else{entries.unshift(obj);toast('Trade saved ✓');}
@@ -1465,7 +1512,90 @@ function renderInstitutional(){
   }).join('')||'<div class="loading">No items match this tag.</div>';
 }
 
+/* ============ CLOUD SYNC + PIN LOCK (Supabase, end-to-end encrypted) ============ */
+const SB_URL=''; // <<< user's Supabase Project URL
+const SB_KEY=''; // <<< user's Supabase anon public key
+function sbCfg(){
+  const url=(SB_URL||localStorage.getItem('tj_sb_url')||'').replace(/\/+$/,'');
+  const key=SB_KEY||localStorage.getItem('tj_sb_key')||'';
+  return {url,key,ok:!!(url&&key)};
+}
+function syncState(){try{return JSON.parse(localStorage.getItem('tj_sync')||'{}')}catch{return{}}}
+function setSyncState(s){localStorage.setItem('tj_sync',JSON.stringify(s));}
+function pinCred(){try{return JSON.parse(localStorage.getItem('tj_pin')||'null')}catch{return null}}
+let PIN=null, syncTimer=null, syncing=false;
+function bufToB64(buf){const b=new Uint8Array(buf);let s='';const c=0x8000;for(let i=0;i<b.length;i+=c)s+=String.fromCharCode.apply(null,b.subarray(i,i+c));return btoa(s);}
+function b64toBuf(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
+async function deriveKey(pin,saltB64){
+  const salt=saltB64?b64toBuf(saltB64):crypto.getRandomValues(new Uint8Array(16));
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  return {key,salt:bufToB64(salt)};
+}
+async function encryptJSON(obj,pin){const {key,salt}=await deriveKey(pin);const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));return JSON.stringify({v:1,salt,iv:bufToB64(iv),ct:bufToB64(ct)});}
+async function decryptJSON(blob,pin){const o=JSON.parse(blob);const {key}=await deriveKey(pin,o.salt);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64toBuf(o.iv)},key,b64toBuf(o.ct));return JSON.parse(new TextDecoder().decode(pt));}
+async function sha(pin,saltB64){const salt=saltB64?b64toBuf(saltB64):crypto.getRandomValues(new Uint8Array(16));const data=new Uint8Array([...salt,...new TextEncoder().encode(pin)]);const h=await crypto.subtle.digest('SHA-256',data);return {hash:bufToB64(h),salt:bufToB64(salt)};}
+async function sbUpsert(id,data){const {url,key}=sbCfg();const r=await fetch(url+'/rest/v1/journal',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({space_id:id,data,updated_at:new Date().toISOString()})});if(!r.ok)throw new Error('push '+r.status);}
+async function sbGet(id){const {url,key}=sbCfg();const r=await fetch(url+'/rest/v1/journal?space_id=eq.'+encodeURIComponent(id)+'&select=data,updated_at',{headers:{apikey:key,Authorization:'Bearer '+key}});if(!r.ok)throw new Error('pull '+r.status);const a=await r.json();return a[0]||null;}
+function mergeEntries(a,b){const m={};b.forEach(e=>m[e.id]=e);a.forEach(e=>{const x=m[e.id];if(!x||(e.updatedAt||0)>=(x.updatedAt||0))m[e.id]=e;});return Object.values(m).sort((x,y)=>new Date(y.date)-new Date(x.date));}
+function scheduleSync(){const st=syncState();if(!st.enabled||!PIN||!sbCfg().ok)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>pushSync().catch(e=>console.warn('sync',e)),2200);}
+async function pushSync(){const st=syncState();if(!st.enabled||!PIN||!sbCfg().ok||syncing)return;syncing=true;try{await sbUpsert(st.spaceId,await encryptJSON(entries,PIN));st.lastSync=Date.now();setSyncState(st);}finally{syncing=false;}updateSyncBadge();}
+async function pullSync(showToast){const st=syncState();if(!st.enabled||!PIN||!sbCfg().ok)return;const row=await sbGet(st.spaceId);if(row){const remote=await decryptJSON(row.data,PIN);entries=mergeEntries(entries,remote);localStorage.setItem(KEY,JSON.stringify(entries));render();if(showToast)toast('Synced ✓ ('+entries.length+' trades)');}st.lastSync=Date.now();setSyncState(st);updateSyncBadge();}
+function updateSyncBadge(){const st=syncState();$('syncBtn').innerHTML=(st.enabled&&sbCfg().ok)?'☁️ Synced':'☁️ Sync';}
+
+function showLock(){const p=pinCred();$('lockSub').textContent=p?'Enter your PIN to unlock':'Set a PIN';$('lockScreen').classList.add('show');$('lockErr').textContent='';setTimeout(()=>$('lockInput').focus(),120);}
+function hideLock(){$('lockScreen').classList.remove('show');$('lockInput').value='';}
+async function tryUnlock(){const p=pinCred();if(!p){hideLock();return;}const val=$('lockInput').value.trim();if(!val){$('lockErr').textContent='Enter your PIN';return;}const {hash}=await sha(val,p.salt);if(hash!==p.hash){$('lockErr').textContent='Wrong PIN';$('lockInput').value='';return;}PIN=val;hideLock();const st=syncState();if(st.enabled&&sbCfg().ok){pullSync(true).catch(()=>toast('Sync check failed — PIN may differ from other device'));}}
+
+function openSyncModal(){renderSyncModal();$('syncModal').classList.add('show');}
+function closeSyncModal(){$('syncModal').classList.remove('show');}
+function renderSyncModal(){
+  const cfg=sbCfg(),st=syncState(),hasPin=!!pinCred();let h='';
+  if(!cfg.ok){
+    h+=`<div class="sync-sec"><div class="lbl">1 · Connect Supabase</div><div class="sync-note">Paste your Supabase Project URL + anon public key (Project Settings → API). Stored only on this device.</div>
+      <input id="sbUrl" placeholder="https://xxxx.supabase.co" style="margin-top:8px"><input id="sbKey" placeholder="anon public key" style="margin-top:8px">
+      <div class="sync-actions"><button class="btn primary" id="sbSave">Save connection</button></div></div>`;
+  } else h+=`<div class="sync-sec"><div class="lbl">1 · Supabase</div><div class="sync-row"><span>Connected</span><span class="sync-badge"><span class="sync-dot on"></span>${cfg.url.replace('https://','')}</span></div></div>`;
+  h+=`<div class="sync-sec"><div class="lbl">2 · Your PIN</div>`;
+  if(hasPin)h+=`<div class="sync-row"><span>PIN set — locks the app and encrypts your synced data.</span></div><div class="sync-actions"><button class="btn ghost" id="pinRemove">Remove PIN</button></div>`;
+  else h+=`<div class="sync-note">Set a 4–6 digit PIN. It locks the app on open and encrypts your trades before they reach the cloud — the PIN is never uploaded.</div>
+      <input id="pinNew" inputmode="numeric" maxlength="8" placeholder="New PIN" style="margin-top:8px"><input id="pinNew2" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" style="margin-top:8px">
+      <div class="sync-actions"><button class="btn primary" id="pinSet">Set PIN</button></div>`;
+  h+=`</div>`;
+  if(cfg.ok&&hasPin){
+    h+=`<div class="sync-sec"><div class="lbl">3 · Sync</div>`;
+    if(st.enabled){const last=st.lastSync?new Date(st.lastSync).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'never';
+      h+=`<div class="sync-row"><span class="sync-badge"><span class="sync-dot on"></span>Active</span><span class="sync-note" style="margin:0">last sync: ${last}</span></div>
+        <div class="sync-note">Sync code — enter this + the same PIN on your other devices:</div><div class="sync-code" id="syncCode">${st.spaceId}</div>
+        <div class="sync-actions"><button class="btn" id="copyCode">Copy code</button><button class="btn primary" id="syncNow">Sync now</button><button class="btn danger ghost" id="unlink">Unlink</button></div>`;
+    } else h+=`<div class="sync-note">Start a fresh synced journal, or link this device to an existing one using its sync code.</div>
+        <div class="sync-actions"><button class="btn primary" id="startSync">Start new synced journal</button></div>
+        <input id="linkCode" placeholder="Paste sync code from your other device" style="margin-top:10px"><div class="sync-actions"><button class="btn" id="linkSync">Link this device</button></div>`;
+    h+=`</div>`;
+  } else if(cfg.ok) h+=`<div class="sync-sec"><div class="lbl">3 · Sync</div><div class="sync-note">Set a PIN above to enable sync.</div></div>`;
+  $('syncBody').innerHTML=h;wireSyncModal();
+}
+function wireSyncModal(){
+  const g=id=>document.getElementById(id);
+  if(g('sbSave'))g('sbSave').onclick=()=>{const u=g('sbUrl').value.trim(),k=g('sbKey').value.trim();if(!u||!k){toast('Enter URL and key');return;}localStorage.setItem('tj_sb_url',u);localStorage.setItem('tj_sb_key',k);toast('Supabase connected ✓');renderSyncModal();updateSyncBadge();};
+  if(g('pinSet'))g('pinSet').onclick=async()=>{const a=g('pinNew').value.trim(),b=g('pinNew2').value.trim();if(a.length<4){toast('PIN too short (min 4 digits)');return;}if(a!==b){toast('PINs do not match');return;}localStorage.setItem('tj_pin',JSON.stringify(await sha(a)));PIN=a;toast('PIN set ✓');renderSyncModal();};
+  if(g('pinRemove'))g('pinRemove').onclick=()=>{if(syncState().enabled){toast('Unlink sync first');return;}if(confirm('Remove PIN? The app will no longer lock on open.')){localStorage.removeItem('tj_pin');PIN=null;toast('PIN removed');renderSyncModal();}};
+  if(g('startSync'))g('startSync').onclick=async()=>{if(!PIN){toast('Set your PIN first');return;}const st=syncState();st.spaceId=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));st.enabled=true;setSyncState(st);try{await pushSync();toast('Sync started ✓');}catch(e){st.enabled=false;setSyncState(st);toast('Sync failed — check Supabase setup');}renderSyncModal();updateSyncBadge();};
+  if(g('linkSync'))g('linkSync').onclick=async()=>{if(!PIN){toast('Set/enter your PIN first');return;}const code=g('linkCode').value.trim();if(!code){toast('Paste the sync code');return;}const st=syncState();st.spaceId=code;st.enabled=true;setSyncState(st);try{await pullSync(true);await pushSync();}catch(e){st.enabled=false;setSyncState(st);toast('Link failed — wrong code or PIN');}renderSyncModal();updateSyncBadge();};
+  if(g('syncNow'))g('syncNow').onclick=async()=>{try{await pushSync();await pullSync(true);}catch(e){toast('Sync error');}renderSyncModal();};
+  if(g('copyCode'))g('copyCode').onclick=()=>{navigator.clipboard.writeText(syncState().spaceId).then(()=>toast('Sync code copied ✓')).catch(()=>toast('Copy failed'));};
+  if(g('unlink'))g('unlink').onclick=()=>{if(confirm('Unlink this device? Local trades stay; syncing stops.')){const st=syncState();st.enabled=false;setSyncState(st);toast('Unlinked');renderSyncModal();updateSyncBadge();}};
+}
+function initSync(){
+  $('syncBtn').onclick=openSyncModal;$('syncClose').onclick=closeSyncModal;
+  $('syncModal').onclick=e=>{if(e.target.id==='syncModal')closeSyncModal();};
+  $('lockUnlock').onclick=tryUnlock;$('lockInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+  updateSyncBadge();
+  if(pinCred())showLock();
+}
+
 /* ============ INIT ============ */
+initSync();          // PIN lock + cloud sync (shows lock screen first if a PIN is set)
 render();
 renderSEP();         // FOMC dot plot + projections + rate expectations (verified Fed data)
 renderEconCal();     // CPI / jobs / FOMC minutes (BLS + Fed schedules)
