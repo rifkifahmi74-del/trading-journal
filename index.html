@@ -355,6 +355,11 @@
   .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
   .sync-dot.on{background:var(--green)}
 
+  /* real-time tick indicator */
+  .livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#c7c7cc;margin-left:4px;vertical-align:1px}
+  .livedot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:lp 1.6s infinite}
+  @keyframes lp{50%{opacity:.4}}
+
   /* Institutional Feed */
   .inst-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
   .inst-filter button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:5px 12px;border-radius:980px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
@@ -1029,8 +1034,9 @@ function renderPrices(d){
   const map=[['BTC','bitcoin'],['ETH','ethereum'],['SOL','solana'],['BNB','binancecoin']];
   $('coins').innerHTML=map.map(([s,id])=>{
     const p=d[id];if(!p)return'';const c=p.usd_24h_change||0;
-    return `<div class="coin"><div class="nm">${s}</div><div class="px">${usd(p.usd)}</div><div class="ch ${c>=0?'up':'down'}">${pct(c)}</div></div>`;
+    return `<div class="coin"><div class="nm">${s}<span class="livedot" data-live="1"></span></div><div class="px" id="px-${s}">${usd(p.usd)}</div><div class="ch ${c>=0?'up':'down'}" id="ch-${s}">${pct(c)}</div></div>`;
   }).join('');
+  if(window.__WS_ON__)document.querySelectorAll('.livedot').forEach(x=>x.classList.add('on'));
 }
 async function loadPrices(){
   try{renderPrices(await jfetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true'));}
@@ -1363,24 +1369,25 @@ function renderHeatmap(list){
     </div>`;
   }).join('');
 }
-async function loadHeatmap(){
-  // Prefer the daily cache (reliable, all coins). OKX rate-limits rapid bursts,
-  // so only fetch live (sequentially) when there's no cache.
+async function loadHeatmap(force){
+  // Cache paints instantly; live sequential fetch (spaced for OKX rate limits) refreshes it.
   const cached=C();
-  if(cached&&cached.lsheatmap&&cached.lsheatmap.length){
-    renderHeatmap(cached.lsheatmap);$('hmUpdated').textContent='OKX · daily cache';return;
+  if(!force&&cached&&cached.lsheatmap&&cached.lsheatmap.length){
+    renderHeatmap(cached.lsheatmap);$('hmUpdated').textContent='OKX · cache';return;
   }
   const out=[];
   for(const [coin,inst] of HM_COINS){
     try{
       const acc=await jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=${coin}&period=1H`);
+      await new Promise(r=>setTimeout(r,220));
       const top=await jfetch(`https://www.okx.com/api/v5/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=${inst}&period=1H`);
       const ra=+acc.data[0][1], tp=+top.data[0][1];
       out.push({coin,retail:ra/(1+ra)*100,top:tp/(1+tp)*100});
     }catch{}
-    await new Promise(r=>setTimeout(r,180));
+    await new Promise(r=>setTimeout(r,220));
   }
-  if(out.length){renderHeatmap(out);$('hmUpdated').textContent='OKX · live';}
+  if(out.length){renderHeatmap(out);$('hmUpdated').textContent='OKX · live '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+  else if(cached&&cached.lsheatmap&&cached.lsheatmap.length){renderHeatmap(cached.lsheatmap);$('hmUpdated').textContent='OKX · cache';}
   else $('heatmap').innerHTML='<div class="loading">⚠ Positioning unavailable — enable the daily cache (GitHub Action) to populate this.</div>';
 }
 
@@ -1431,7 +1438,9 @@ function eventImpactFor(sym){
 }
 function renderMacroDesk(){
   const c=C(); const list=(c&&c.macrodesk)||[]; const risk=(c&&c.risk)||null;
-  const stamp=c&&c.updated?'computed '+new Date(c.updated).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  const stamp=window.__MD_LIVE__
+    ?('live · '+new Date(window.__MD_LIVE__).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' (crypto) · metals/oil via cloud')
+    :(c&&c.updated?'computed '+new Date(c.updated).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'');
   $('mdUpdated').textContent=stamp;
   if(!list.length){$('mdBody').innerHTML='<div class="loading">Macro Desk is computed by the data updater. Enable the GitHub Action (or run update-market-data.ps1) to populate it.</div>';$('mdPicks').innerHTML='';$('mdRisk').innerHTML='';return;}
   // risk appetite + overall bias + macro tape
@@ -1594,6 +1603,113 @@ function initSync(){
   if(pinCred())showLock();
 }
 
+/* ============ REAL-TIME ENGINE ============
+   1) OKX WebSocket — tick-by-tick prices for the crypto panel.
+   2) In-browser regime engine — recomputes Macro Desk crypto assets every 60s
+      from live OKX candles (same math as the cloud engine).
+   Metals/oil & RSS stay on the cloud cycle (their sources block browsers). */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---- 1) live price stream ---- */
+function initTicker(){
+  const subs={'BTC-USDT':'BTC','ETH-USDT':'ETH','SOL-USDT':'SOL','BNB-USDT':'BNB'};
+  function connect(){
+    let ws;try{ws=new WebSocket('wss://ws.okx.com:8443/ws/v5/public');}catch{return;}
+    ws.onopen=()=>{window.__WS_ON__=true;
+      ws.send(JSON.stringify({op:'subscribe',args:Object.keys(subs).map(i=>({channel:'tickers',instId:i}))}));
+      document.querySelectorAll('.livedot').forEach(d=>d.classList.add('on'));};
+    ws.onmessage=ev=>{try{
+      const m=JSON.parse(ev.data);if(!m.data||!m.arg)return;
+      const s=subs[m.arg.instId];if(!s)return;
+      const t=m.data[0],el=$('px-'+s),chEl=$('ch-'+s);if(!el)return;
+      const last=+t.last,open=+t.open24h,prev=parseFloat(el.dataset.v||'0');
+      el.textContent=usd(last);el.dataset.v=last;
+      if(prev&&last!==prev){el.style.color=last>prev?'var(--green)':'var(--red)';setTimeout(()=>{el.style.color='';},400);}
+      if(chEl&&open){const chg=(last/open-1)*100;chEl.textContent=pct(chg);chEl.className='ch '+(chg>=0?'up':'down');}
+    }catch{}};
+    ws.onclose=()=>{window.__WS_ON__=false;document.querySelectorAll('.livedot').forEach(d=>d.classList.remove('on'));setTimeout(connect,5000);};
+    ws.onerror=()=>{try{ws.close();}catch{}};
+  }
+  connect();
+}
+
+/* ---- 2) in-browser regime engine (mirrors update-market-data.ps1) ---- */
+async function okxCandles(instId,bar,limit){
+  const r=await jfetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}`);
+  if(r.code!=='0'||!r.data||!r.data.length)throw new Error('okx');
+  return r.data.slice().reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
+}
+function aggJS(bars,g){const out=[];for(let i=0;i<bars.length;i+=g){const sl=bars.slice(i,i+g);
+  out.push({o:sl[0].o,h:Math.max(...sl.map(b=>b.h)),l:Math.min(...sl.map(b=>b.l)),c:sl[sl.length-1].c,v:sl.reduce((a,b)=>a+b.v,0)});}return out;}
+function emaLast(vals,p){const k=2/(p+1);let e=vals[0];for(const v of vals)e=v*k+e*(1-k);return e;}
+function effRatio(c,k){if(c.length<=k)k=c.length-1;if(k<=0)return 0;
+  const chg=Math.abs(c[c.length-1]-c[c.length-1-k]);let vol=0;
+  for(let i=c.length-k;i<c.length;i++)vol+=Math.abs(c[i]-c[i-1]);
+  return vol===0?0:chg/vol;}
+function tfRegimeJS(bars){if(bars.length<12)return null;
+  const c=bars.map(b=>b.c),last=c[c.length-1];
+  const e20=emaLast(c,Math.min(20,c.length-1)),e50=emaLast(c,Math.min(50,c.length-1));
+  const er=effRatio(c,Math.min(20,c.length-1));let dir;
+  if(last>e20&&e20>=e50)dir=1;else if(last<e20&&e20<=e50)dir=-1;
+  else dir=Math.sign(c[c.length-1]-c[Math.max(0,c.length-5)]);
+  const bear=dir>0?'UP':dir<0?'DOWN':'FLAT';
+  const qual=er>=0.5?'CLEAN':er>=0.3?'DEVELOPING':'CHOPPY';
+  return{dir,bearing:bear,er:Math.round(er*100)/100,label:qual+' '+bear,tradable:er>=0.35};}
+function flowStateJS(bars){
+  const hasVol=bars.filter(b=>b.v>0).length>bars.length/2;
+  const vals=hasVol?bars.map(b=>b.v):bars.map(b=>b.h-b.l);
+  if(vals.length<8)return{state:'HEALTHY',ratio:1,metric:'n/a'};
+  const recent=vals.slice(-6).reduce((a,b)=>a+b,0)/6;
+  const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const ratio=avg===0?1:recent/avg;
+  return{state:ratio<0.7?'THIN':ratio<=1.5?'HEALTHY':'CROWDED',ratio:Math.round(ratio*100)/100,metric:hasVol?'volume':'range'};}
+function daysInRegime(d1){const dc=d1.map(b=>b.c),k=2/21;let e=dc[0];const ema=[e];
+  for(let i=1;i<dc.length;i++){e=dc[i]*k+e*(1-k);ema.push(e);}
+  const side=Math.sign(dc[dc.length-1]-ema[ema.length-1]);let days=0;
+  for(let i=dc.length-1;i>=0;i--){if(side!==0&&Math.sign(dc[i]-ema[i])===side)days++;else break;}
+  return days;}
+function biasCalc(rd,tfs){
+  const alc=tfs.filter(t=>t.aligned).length,pulse=tfs.length?Math.round(100*alc/tfs.length):0;
+  const ern=Math.min(1,rd.er/0.6);
+  if(rd.dir===0||rd.er<0.28||pulse<50)return{bias:'NEUTRAL',conf:Math.max(25,Math.round(45-rd.er*30)),pulse};
+  return{bias:rd.dir>0?'BULLISH':'BEARISH',conf:Math.min(95,Math.round(40+0.35*pulse+25*ern)),pulse};}
+function recomputeRisk(md){
+  const ds=i=>{const d=i.bearing==='UP'?1:i.bearing==='DOWN'?-1:0;return d*(i.conf/100);};
+  const riskN=['BTC/USD','ETH/USD','SOL/USD','HYPE/USD','LIT/USD','WTI Oil'],safeN=['XAU/USD'];
+  const r=md.filter(m=>riskN.includes(m.sym)),s=md.filter(m=>safeN.includes(m.sym));
+  const ra=r.length?r.reduce((a,b)=>a+ds(b),0)/r.length:0;
+  const sa=s.length?s.reduce((a,b)=>a+ds(b),0)/s.length:0;
+  const score=Math.max(2,Math.min(98,Math.round(50+(ra-0.55*sa)*40)));
+  return{score,label:score>=60?'RISK-ON':score<=40?'RISK-OFF':'NEUTRAL',
+    bull:md.filter(m=>m.bias==='BULLISH').length,bear:md.filter(m=>m.bias==='BEARISH').length,neut:md.filter(m=>m.bias==='NEUTRAL').length};}
+async function liveRegime(sym,inst){
+  const m15=await okxCandles(inst,'15m',300);await sleep(160);
+  const d1=await okxCandles(inst,'1D',300);
+  if(m15.length<40||d1.length<30)return null;
+  const b30=aggJS(m15,2),b1h=aggJS(m15,4),b4h=aggJS(m15,16);
+  const rd=tfRegimeJS(d1);if(!rd)return null;
+  const tfs=[['4H',b4h],['1H',b1h],['30m',b30],['15m',m15]].map(([tf,b])=>{
+    const rr=tfRegimeJS(b);return rr?{tf,label:rr.label,aligned:rr.dir!==0&&rr.dir===rd.dir,state:rr.tradable?'tradable':'quiet'}:null;}).filter(Boolean);
+  const dc=d1.map(b=>b.c),lastC=dc[dc.length-1];
+  const dec=lastC<10?1e4:100;
+  const {bias,conf,pulse}=biasCalc(rd,tfs);
+  return{sym,price:Math.round(lastC*dec)/dec,chg:Math.round((lastC/dc[dc.length-2]-1)*1e4)/100,
+    daily:rd.label,bearing:rd.bearing,er:rd.er,days:daysInRegime(d1),tfs,flow:flowStateJS(b1h),bias,conf,pulse};}
+let mdRefreshing=false;
+async function refreshCryptoRegimes(){
+  if(mdRefreshing)return;const c=C();if(!c||!c.macrodesk||!c.macrodesk.length)return;
+  const map={'BTC/USD':'BTC-USDT','ETH/USD':'ETH-USDT','SOL/USD':'SOL-USDT','HYPE/USD':'HYPE-USDT','LIT/USD':'LIT-USDT'};
+  mdRefreshing=true;let changed=false;
+  try{
+    for(const m of c.macrodesk){
+      const inst=map[m.sym];if(!inst)continue;
+      try{const fresh=await liveRegime(m.sym,inst);if(fresh){Object.assign(m,fresh);changed=true;}}catch{}
+      await sleep(220);
+    }
+    if(changed){c.risk=recomputeRisk(c.macrodesk);window.__MD_LIVE__=Date.now();renderMacroDesk();}
+  }finally{mdRefreshing=false;}
+}
+
 /* ============ INIT ============ */
 initSync();          // PIN lock + cloud sync (shows lock screen first if a PIN is set)
 render();
@@ -1605,7 +1721,12 @@ renderMacroDesk();   // multi-timeframe regime engine (from cache)
 renderInstitutional(); // research feed (from cache)
 loadFOMC();          // FOMC schedule is local data — always available
 loadMarket();        // then refresh live (incl. heatmap)
-setInterval(loadMarket,5*60*1000); // auto-refresh every 5 min while open
+initTicker();        // ⚡ tick-by-tick prices via OKX WebSocket
+setTimeout(refreshCryptoRegimes,4000);              // first live regime compute shortly after load
+setInterval(refreshCryptoRegimes,60*1000);          // crypto regimes: every 60s
+setInterval(()=>loadLongShort(),60*1000);           // BTC/ETH positioning: every 60s
+setInterval(()=>loadHeatmap(true),2*60*1000);       // 8-coin heatmap: every 2 min
+setInterval(loadMarket,5*60*1000);                  // everything else: every 5 min while open
 </script>
 
 <script>
