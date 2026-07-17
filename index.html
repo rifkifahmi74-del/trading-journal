@@ -1513,8 +1513,8 @@ function renderInstitutional(){
 }
 
 /* ============ CLOUD SYNC + PIN LOCK (Supabase, end-to-end encrypted) ============ */
-const SB_URL=''; // <<< user's Supabase Project URL
-const SB_KEY=''; // <<< user's Supabase anon public key
+const SB_URL='https://bhdgmfavdjbwetehdupe.supabase.co'; // Supabase Project URL
+const SB_KEY='sb_publishable_WvqyXvVME13G-JMpBAiVng_tyV3dwQV'; // anon public key (safe for browsers)
 function sbCfg(){
   const url=(SB_URL||localStorage.getItem('tj_sb_url')||'').replace(/\/+$/,'');
   const key=SB_KEY||localStorage.getItem('tj_sb_key')||'';
