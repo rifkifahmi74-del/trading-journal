@@ -3,7 +3,7 @@ name: Update market data
 # Refreshes market-cache.js daily in the cloud (no PC needed) and on manual run.
 on:
   schedule:
-    - cron: '0 11 * * *'   # 11:00 UTC daily (~18:00 WIB / ~6-7am US ET)
+    - cron: '*/30 * * * *'   # every 30 min (keeps Macro Desk regime + feed fresh)
   workflow_dispatch: {}
 
 permissions:

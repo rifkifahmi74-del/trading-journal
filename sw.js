@@ -2,7 +2,7 @@
    The page (index.html) and market-cache.js are NETWORK-FIRST so you always get
    the latest version when online (falling back to cache offline). Icons/manifest
    are cache-first. External API calls (CoinGecko, OKX, TradingView) hit the network. */
-const CACHE = 'tj-cache-v5';
+const CACHE = 'tj-cache-v6';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 

@@ -279,6 +279,51 @@
   .hm-pill{font-size:12px;font-weight:700;padding:2px 9px;border-radius:980px;min-width:52px;text-align:center}
   .hm-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:14px;align-items:center}
   .hm-legend i{display:inline-block;width:34px;height:11px;border-radius:4px;margin-right:5px;vertical-align:-1px;background:linear-gradient(90deg,rgba(229,72,77,.75),rgba(134,134,139,.25),rgba(45,164,78,.75))}
+
+  /* Macro Desk */
+  .md-cross{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:14px;align-items:center}
+  .md-cross b{font-weight:800}
+  .md-picks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .md-picks button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:7px 13px;border-radius:980px;cursor:pointer;font-size:12.5px;font-weight:600;transition:.15s}
+  .md-picks button:hover{border-color:var(--accent)}
+  .md-picks button.on{background:var(--accent);color:#fff;border-color:transparent}
+  .md-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .md-regime{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .md-price{font-size:17px;font-weight:700;text-align:right}
+  .md-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .md-tfs{margin-bottom:18px}
+  .md-tf{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .md-tf:last-child{border-bottom:none}
+  .md-tf .tf{font-size:12px;font-weight:800;width:42px;color:var(--muted)}
+  .md-tf .lbl{font-weight:700;font-size:13.5px;flex:1;letter-spacing:.2px}
+  .md-badge{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:980px;white-space:nowrap}
+  .md-badge.al{background:rgba(45,164,78,.14);color:var(--green)}
+  .md-badge.ct{background:rgba(229,72,77,.14);color:var(--red)}
+  .md-state{font-size:11px;color:var(--muted);width:58px;text-align:right}
+  .md-meter{margin-bottom:16px}
+  .md-meter .top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px}
+  .md-track{height:8px;border-radius:6px;background:var(--panel-2);position:relative}
+  .md-track .fillg{position:absolute;inset:0;border-radius:6px;background:linear-gradient(90deg,#e5484d,#cf8a00,#2da44e);opacity:.32}
+  .md-track .mk{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+  .md-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px;font-weight:600}
+  .md-desc{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}
+  .md-synth{font-size:13px;line-height:1.65;background:var(--panel-2);border-radius:12px;padding:13px 15px;margin-top:8px}
+
+  /* Institutional Feed */
+  .inst-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+  .inst-filter button{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:5px 12px;border-radius:980px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
+  .inst-filter button:hover{border-color:var(--accent)}
+  .inst-filter button.on{background:var(--accent);color:#fff;border-color:transparent}
+  .inst-item{padding:13px 0;border-bottom:1px solid var(--border)}
+  .inst-item:last-child{border-bottom:none}
+  .inst-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .inst-src{font-size:10.5px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+  .inst-time{font-size:11px;color:var(--muted)}
+  .inst-title{font-size:14.5px;font-weight:600;color:var(--text);text-decoration:none;display:block;line-height:1.35}
+  .inst-title:hover{color:var(--accent)}
+  .inst-desc{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.55}
+  .inst-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .inst-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:980px;background:var(--panel-2);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -329,6 +374,31 @@
     <div class="bd">
       <div class="tv-picks" id="tvPicks"></div>
       <div id="tvChart"></div>
+    </div>
+  </div>
+
+  <!-- MACRO DESK -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd">
+      <h2>📡 Macro Desk <span class="tag">structure · flow · bearing · pulse</span></h2>
+      <span class="updated" id="mdUpdated"></span>
+    </div>
+    <div class="bd">
+      <div class="md-cross" id="mdCross"></div>
+      <div class="md-picks" id="mdPicks"></div>
+      <div id="mdBody"><div class="loading">Loading macro desk…</div></div>
+    </div>
+  </div>
+
+  <!-- INSTITUTIONAL FEED -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="hd">
+      <h2>🏛️ Institutional Feed <span class="tag">research</span></h2>
+      <span class="updated" id="instUpdated"></span>
+    </div>
+    <div class="bd">
+      <div class="inst-filter" id="instFilter"></div>
+      <div id="instBody"><div class="loading">Loading research…</div></div>
     </div>
   </div>
 
@@ -1247,12 +1317,96 @@ async function loadHeatmap(){
   else $('heatmap').innerHTML='<div class="loading">⚠ Positioning unavailable — enable the daily cache (GitHub Action) to populate this.</div>';
 }
 
+/* ============ MACRO DESK (computed regime — rendered from cache) ============ */
+let mdSel=0;
+function bearColor(b){return b==='UP'?'var(--green)':b==='DOWN'?'var(--red)':'var(--muted)';}
+function labelColor(l){return /UP/.test(l)?'var(--green)':/DOWN/.test(l)?'var(--red)':'var(--muted)';}
+function flowDesc(f){
+  if(f.state==='THIN')return 'Thin participation — fewer players, fills can slip and moves are less reliable. Trade smaller / be selective.';
+  if(f.state==='CROWDED')return 'Crowded — heavy participation; watch for exhaustion and sharp reversals at extremes.';
+  return 'Healthy participation — orderly tape, fair fills, standard size is reasonable.';
+}
+function mdSynth(m,pulse,counter){
+  let s=`<b>${m.sym}:</b> daily <b style="color:${bearColor(m.bearing)}">${m.daily}</b> (${m.days}d). `;
+  if(pulse>=75)s+=`Intraday is ${pulse}% aligned with the daily — structured, trend-continuation bias. `;
+  else if(pulse<=25)s+=`Intraday fights the daily (only ${pulse}% aligned${counter.length?`, ${counter.join('/')} counter`:''}) — expect chop / mean-reversion. `;
+  else s+=`Mixed multi-timeframe read (${pulse}% aligned${counter.length?`, ${counter.join('/')} counter`:''}) — wait for confirmation. `;
+  s+=`Flow ${m.flow.state.toLowerCase()}. `;
+  s+=`<span style="color:var(--muted)">Computed from price action — not financial advice.</span>`;
+  return s;
+}
+function renderMacroDesk(){
+  const c=C(); const list=(c&&c.macrodesk)||[];
+  const stamp=c&&c.updated?'computed '+new Date(c.updated).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  $('mdUpdated').textContent=stamp;
+  if(!list.length){$('mdBody').innerHTML='<div class="loading">Macro Desk is computed by the data updater. Enable the GitHub Action (or run update-market-data.ps1) to populate it.</div>';$('mdPicks').innerHTML='';$('mdCross').innerHTML='';return;}
+  let up=0,dn=0,fl=0;list.forEach(m=>{if(m.bearing==='UP')up++;else if(m.bearing==='DOWN')dn++;else fl++;});
+  $('mdCross').innerHTML=`Cross-asset daily bias: <span style="color:var(--green)"><b>${up}</b> up</span> · <span style="color:var(--red)"><b>${dn}</b> down</span> · <span style="color:var(--muted)"><b>${fl}</b> flat</span>`;
+  $('mdPicks').innerHTML=list.map((m,i)=>`<button data-i="${i}" class="${i===mdSel?'on':''}">${m.sym}</button>`).join('');
+  document.querySelectorAll('#mdPicks button').forEach(b=>b.onclick=()=>{mdSel=+b.dataset.i;renderMacroDesk();});
+  const m=list[Math.min(mdSel,list.length-1)];
+  const col=bearColor(m.bearing);
+  const dir=m.bearing==='UP'?1:m.bearing==='DOWN'?-1:0;
+  const bpos=Math.max(4,Math.min(96,50+dir*m.er*46));
+  const fr=Math.min(2,Math.max(0.4,m.flow.ratio));const fpos=Math.max(4,Math.min(96,((fr-0.4)/1.6)*100));
+  const aligned=m.tfs.filter(t=>t.aligned).length,total=m.tfs.length||1;
+  const pulse=Math.round(aligned/total*100);
+  const counter=m.tfs.filter(t=>!t.aligned).map(t=>t.tf);
+  const fcol=m.flow.state==='HEALTHY'?'var(--green)':m.flow.state==='CROWDED'?'var(--amber)':'var(--muted)';
+  $('mdBody').innerHTML=`
+    <div class="md-head">
+      <div><div class="md-regime" style="color:${col}">${m.daily}</div><div class="md-sub">regime active ${m.days} day${m.days!==1?'s':''} · pulse ${pulse}% of timeframes aligned</div></div>
+      <div><div class="md-price">${m.price}</div><div class="md-sub" style="color:${m.chg>=0?'var(--green)':'var(--red)'}">${m.chg>=0?'+':''}${m.chg}% today</div></div>
+    </div>
+    <div class="md-tfs">
+      ${m.tfs.map(t=>`<div class="md-tf"><span class="tf">${t.tf}</span><span class="lbl" style="color:${labelColor(t.label)}">${t.label}</span><span class="md-badge ${t.aligned?'al':'ct'}">${t.aligned?'aligned w/ daily':'counter-daily'}</span><span class="md-state">${t.state}</span></div>`).join('')}
+    </div>
+    <div class="md-meter">
+      <div class="top"><span>🌊 Flow</span><span style="color:${fcol}">${m.flow.state}</span></div>
+      <div class="md-track"><div class="fillg"></div><div class="mk" style="left:${fpos}%"></div></div>
+      <div class="md-scale"><span>THIN</span><span>HEALTHY</span><span>CROWDED</span></div>
+      <div class="md-desc">${flowDesc(m.flow)} <span style="opacity:.7">(by ${m.flow.metric})</span></div>
+    </div>
+    <div class="md-meter">
+      <div class="top"><span>🧭 Bearing</span><span style="color:${col}">${m.daily}</span></div>
+      <div class="md-track"><div class="fillg"></div><div class="mk" style="left:${bpos}%;border-color:${col}"></div></div>
+      <div class="md-scale"><span>DOWN</span><span>FLAT</span><span>UP</span></div>
+      <div class="md-desc">Trend efficiency ${(m.er*100).toFixed(0)}% — higher means a cleaner one-way trend, lower means choppier / two-sided.</div>
+    </div>
+    <div class="md-synth">${mdSynth(m,pulse,counter)}</div>`;
+}
+
+/* ============ INSTITUTIONAL FEED (rendered from cache) ============ */
+let instTag='';
+function renderInstitutional(){
+  const c=C(); const list=(c&&c.institutional)||[];
+  $('instUpdated').textContent=c&&c.updated?'updated '+new Date(c.updated).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  if(!list.length){$('instBody').innerHTML='<div class="loading">Feed is aggregated by the data updater. Enable the GitHub Action (or run update-market-data.ps1) to populate it.</div>';$('instFilter').innerHTML='';return;}
+  const tags=[...new Set(list.flatMap(i=>i.tags||[]))].sort();
+  if(instTag&&!tags.includes(instTag))instTag='';
+  $('instFilter').innerHTML='<button class="'+(instTag===''?'on':'')+'" data-t="">All</button>'+tags.map(t=>`<button class="${instTag===t?'on':''}" data-t="${t}">${t}</button>`).join('');
+  document.querySelectorAll('#instFilter button').forEach(b=>b.onclick=()=>{instTag=b.dataset.t;renderInstitutional();});
+  const shown=instTag?list.filter(i=>(i.tags||[]).includes(instTag)):list;
+  $('instBody').innerHTML=shown.map(i=>{
+    const ago=Math.round((Date.now()/1000-i.published_on)/3600);
+    const when=ago<1?'just now':ago<48?ago+'h ago':Math.round(ago/24)+'d ago';
+    return `<div class="inst-item">
+      <div class="inst-top"><span class="inst-src">${i.source}</span><span class="inst-time">· ${when}</span></div>
+      <a class="inst-title" href="${i.url}" target="_blank" rel="noopener">${i.title}</a>
+      ${i.desc?`<div class="inst-desc">${i.desc}</div>`:''}
+      ${(i.tags&&i.tags.length)?`<div class="inst-tags">${i.tags.map(t=>`<span class="inst-tag">${t}</span>`).join('')}</div>`:''}
+    </div>`;
+  }).join('')||'<div class="loading">No items match this tag.</div>';
+}
+
 /* ============ INIT ============ */
 render();
 renderSEP();         // FOMC dot plot + projections + rate expectations (verified Fed data)
 renderEconCal();     // CPI / jobs / FOMC minutes (BLS + Fed schedules)
 initChart();         // TradingView live chart
 renderFromCache();   // show last daily snapshot immediately
+renderMacroDesk();   // multi-timeframe regime engine (from cache)
+renderInstitutional(); // research feed (from cache)
 loadFOMC();          // FOMC schedule is local data — always available
 loadMarket();        // then refresh live (incl. heatmap)
 setInterval(loadMarket,5*60*1000); // auto-refresh every 5 min while open

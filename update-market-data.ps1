@@ -18,6 +18,57 @@ function Try-Step($name, $block) {
   catch { Write-Host ("[skip] {0}: {1}" -f $name, $_.Exception.Message); $null }
 }
 
+# ===== Macro Desk regime engine (computed from real OHLC — Yahoo Finance) =====
+$YH = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+function YFetch($sym, $interval, $range) {
+  $u = "https://query1.finance.yahoo.com/v8/finance/chart/$([uri]::EscapeDataString($sym))?interval=$interval&range=$range"
+  $res = (Invoke-RestMethod $u -Headers $YH -TimeoutSec 25).chart.result[0]
+  $q = $res.indicators.quote[0]; $bars = @()
+  for ($i = 0; $i -lt $res.timestamp.Count; $i++) {
+    if ($null -ne $q.close[$i] -and $null -ne $q.open[$i]) {
+      $bars += [pscustomobject]@{ o=[double]$q.open[$i]; h=[double]$q.high[$i]; l=[double]$q.low[$i]; c=[double]$q.close[$i]; v=[double]$(if ($q.volume) { $q.volume[$i] } else { 0 }) }
+    }
+  }
+  ,$bars
+}
+function Agg($bars, $g) {
+  $out = @()
+  for ($i = 0; $i -lt $bars.Count; $i += $g) {
+    $end = [math]::Min($i + $g - 1, $bars.Count - 1); $sl = @($bars[$i..$end])
+    $out += [pscustomobject]@{ o=$sl[0].o; h=($sl.h | Measure-Object -Maximum).Maximum; l=($sl.l | Measure-Object -Minimum).Minimum; c=$sl[-1].c; v=($sl.v | Measure-Object -Sum).Sum }
+  }
+  ,$out
+}
+function EmaLast($vals, $p) { $k = 2/($p+1); $e = $vals[0]; foreach ($v in $vals) { $e = $v*$k + $e*(1-$k) }; $e }
+function EffRatio($c, $k) {
+  if ($c.Count -le $k) { $k = $c.Count - 1 }; if ($k -le 0) { return 0 }
+  $chg = [math]::Abs($c[-1] - $c[-1-$k]); $vol = 0.0
+  for ($i = $c.Count - $k; $i -lt $c.Count; $i++) { $vol += [math]::Abs($c[$i] - $c[$i-1]) }
+  if ($vol -eq 0) { 0 } else { $chg / $vol }
+}
+function TFRegime($bars) {
+  if ($bars.Count -lt 12) { return $null }
+  $c = @($bars | ForEach-Object { $_.c }); $last = $c[-1]
+  $e20 = EmaLast $c ([math]::Min(20, $c.Count-1)); $e50 = EmaLast $c ([math]::Min(50, $c.Count-1))
+  $er = EffRatio $c ([math]::Min(20, $c.Count-1)); $dir = 0
+  if ($last -gt $e20 -and $e20 -ge $e50) { $dir = 1 }
+  elseif ($last -lt $e20 -and $e20 -le $e50) { $dir = -1 }
+  else { $dir = [math]::Sign($c[-1] - $c[[math]::Max(0, $c.Count-5)]) }
+  $bear = if ($dir -gt 0) { 'UP' } elseif ($dir -lt 0) { 'DOWN' } else { 'FLAT' }
+  $qual = if ($er -ge 0.5) { 'CLEAN' } elseif ($er -ge 0.3) { 'DEVELOPING' } else { 'CHOPPY' }
+  [ordered]@{ dir=$dir; bearing=$bear; er=[math]::Round($er,2); label="$qual $bear"; tradable=($er -ge 0.35) }
+}
+function FlowState($bars) {
+  $useVol = (@($bars | Where-Object { $_.v -gt 0 }).Count) -gt ($bars.Count/2)
+  $vals = if ($useVol) { @($bars | ForEach-Object { $_.v }) } else { @($bars | ForEach-Object { $_.h - $_.l }) }
+  if ($vals.Count -lt 8) { return [ordered]@{ state='HEALTHY'; ratio=1; metric='n/a' } }
+  $recent = ($vals[($vals.Count-6)..($vals.Count-1)] | Measure-Object -Average).Average
+  $avg = ($vals | Measure-Object -Average).Average
+  $ratio = if ($avg -eq 0) { 1 } else { $recent / $avg }
+  $state = if ($ratio -lt 0.7) { 'THIN' } elseif ($ratio -le 1.5) { 'HEALTHY' } else { 'CROWDED' }
+  [ordered]@{ state=$state; ratio=[math]::Round($ratio,2); metric=$(if ($useVol) { 'volume' } else { 'range' }) }
+}
+
 $cache = [ordered]@{ updated = (Get-Date).ToString('o') }
 
 # ---- Crypto prices (CoinGecko) ----
@@ -135,6 +186,68 @@ $cache.news = Try-Step 'news' {
     } catch { }
   }
   $items | Sort-Object { $_.published_on } -Descending | Select-Object -First 8
+}
+
+# ---- MACRO DESK: multi-timeframe regime, bearing & flow computed from price action ----
+$cache.macrodesk = Try-Step 'macrodesk' {
+  $assets = @(
+    @{ n='XAU/USD'; y='GC=F' }, @{ n='DXY'; y='DX-Y.NYB' }, @{ n='BTC/USD'; y='BTC-USD' },
+    @{ n='ETH/USD'; y='ETH-USD' }, @{ n='SPX 500'; y='^GSPC' }, @{ n='EUR/USD'; y='EURUSD=X' }
+  )
+  $out = @()
+  foreach ($a in $assets) {
+    try {
+      $m15 = YFetch $a.y '15m' '5d'; Start-Sleep -Milliseconds 200
+      $d1  = YFetch $a.y '1d'  '6mo'
+      if ($m15.Count -lt 40 -or $d1.Count -lt 30) { continue }
+      $b30 = Agg $m15 2; $b1h = Agg $m15 4; $b4h = Agg $m15 16
+      $rd = TFRegime $d1
+      $tfs = @()
+      foreach ($p in @(@('4H',$b4h), @('1H',$b1h), @('30m',$b30), @('15m',$m15))) {
+        $rr = TFRegime $p[1]; if ($null -eq $rr) { continue }
+        $tfs += [ordered]@{ tf=$p[0]; label=$rr.label; aligned=($rr.dir -ne 0 -and $rr.dir -eq $rd.dir); state=$(if ($rr.tradable) { 'tradable' } else { 'quiet' }) }
+      }
+      # days the daily regime has held (consecutive days same side of daily EMA20)
+      $dc = @($d1 | ForEach-Object { $_.c }); $k = 2/21; $e = $dc[0]; $ema = @($e)
+      for ($i=1; $i -lt $dc.Count; $i++) { $e = $dc[$i]*$k + $e*(1-$k); $ema += $e }
+      $side = [math]::Sign($dc[-1] - $ema[-1]); $days = 0
+      for ($i = $dc.Count-1; $i -ge 0; $i--) { if ($side -ne 0 -and [math]::Sign($dc[$i]-$ema[$i]) -eq $side) { $days++ } else { break } }
+      $out += [ordered]@{
+        sym=$a.n; price=[math]::Round($dc[-1], $(if ($dc[-1] -lt 10) { 4 } else { 2 }))
+        chg=[math]::Round(($dc[-1]/$dc[-2]-1)*100, 2); daily=$rd.label; bearing=$rd.bearing
+        er=$rd.er; days=$days; tfs=$tfs; flow=(FlowState $b1h)
+      }
+    } catch { }
+    Start-Sleep -Milliseconds 250
+  }
+  $out
+}
+
+# ---- INSTITUTIONAL FEED: free macro/research aggregation (RSS, source-linked) ----
+$cache.institutional = Try-Step 'institutional' {
+  $feeds = @(
+    @{ s='ForexLive'; u='https://www.forexlive.com/feed/' },
+    @{ s='FXStreet';  u='https://www.fxstreet.com/rss/news' },
+    @{ s='Investing.com'; u='https://www.investing.com/rss/news_1.rss' }
+  )
+  $kws = @('Gold','Silver','Bitcoin','Crypto','Ethereum','Dollar','USD','Inflation','CPI','Fed','FOMC','Rate','Rates','Oil','Yield','Yields','Bonds','Treasury','ECB','Powell','Jobs','Payrolls','Stocks','Equities','Recession','PCE')
+  $items = @()
+  foreach ($f in $feeds) {
+    try {
+      $xml = [xml](Invoke-WebRequest $f.u -UseBasicParsing -Headers $YH -TimeoutSec 20).Content
+      foreach ($it in ($xml.rss.channel.item | Select-Object -First 6)) {
+        $title = if ($it.title.'#cdata-section') { [string]$it.title.'#cdata-section' } else { [string]$it.title }
+        $desc  = if ($it.description.'#cdata-section') { [string]$it.description.'#cdata-section' } else { [string]$it.description }
+        $desc  = (($desc -replace '<[^>]+>','') -replace '\s+',' ').Trim()
+        if ($desc.Length -gt 260) { $desc = $desc.Substring(0,260) + '...' }
+        $ts = try { [DateTimeOffset]::Parse([string]$it.pubDate).ToUnixTimeSeconds() } catch { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
+        $tags = @(); $blob = "$title $desc"
+        foreach ($kw in $kws) { if ($blob -match "(?i)\b$kw\b") { $tags += $kw } }
+        $items += [ordered]@{ source=$f.s; title=$title; desc=$desc; url=[string]$it.link; published_on=$ts; tags=@($tags | Select-Object -Unique | Select-Object -First 4) }
+      }
+    } catch { }
+  }
+  $items | Sort-Object { $_.published_on } -Descending | Select-Object -First 12
 }
 
 # ---- Write cache file ----
