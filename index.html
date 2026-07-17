@@ -643,7 +643,7 @@
       </div>
 
       <div class="mi-block">
-        <div class="mi-title">Crypto Market <span class="src">CoinGecko</span></div>
+        <div class="mi-title">Crypto Market <span class="src">OKX live · CoinGecko</span></div>
         <div class="coins" id="coins"><div class="loading">Fetching prices…</div></div>
         <div style="margin-top:11px" id="globalMkt"></div>
       </div>
@@ -1031,10 +1031,15 @@ function cacheStamp(){const c=C();return c&&c.updated?new Date(c.updated):null;}
 
 /* ---- PRICES (crypto) ---- */
 function renderPrices(d){
-  const map=[['BTC','bitcoin'],['ETH','ethereum'],['SOL','solana'],['BNB','binancecoin']];
+  // BTC/ETH/SOL/BNB initial from CoinGecko; HYPE/LIT initial from the regime cache.
+  // All six then stream tick-by-tick from the OKX WebSocket.
+  const map=[['BTC','bitcoin'],['ETH','ethereum'],['SOL','solana'],['BNB','binancecoin'],['HYPE',null],['LIT',null]];
+  const md=(C()&&C().macrodesk)||[];
+  const mdPrice=s=>{const m=md.find(x=>x.sym===s+'/USD');return m?{usd:m.price,usd_24h_change:m.chg}:null;};
   $('coins').innerHTML=map.map(([s,id])=>{
-    const p=d[id];if(!p)return'';const c=p.usd_24h_change||0;
-    return `<div class="coin"><div class="nm">${s}<span class="livedot" data-live="1"></span></div><div class="px" id="px-${s}">${usd(p.usd)}</div><div class="ch ${c>=0?'up':'down'}" id="ch-${s}">${pct(c)}</div></div>`;
+    const p=(id&&d&&d[id])?d[id]:mdPrice(s);
+    const c=p?(p.usd_24h_change||0):0;
+    return `<div class="coin"><div class="nm">${s}<span class="livedot" data-live="1"></span></div><div class="px" id="px-${s}">${p?usd(p.usd):'—'}</div><div class="ch ${c>=0?'up':'down'}" id="ch-${s}">${p?pct(c):''}</div></div>`;
   }).join('');
   if(window.__WS_ON__)document.querySelectorAll('.livedot').forEach(x=>x.classList.add('on'));
 }
@@ -1612,7 +1617,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---- 1) live price stream ---- */
 function initTicker(){
-  const subs={'BTC-USDT':'BTC','ETH-USDT':'ETH','SOL-USDT':'SOL','BNB-USDT':'BNB'};
+  const subs={'BTC-USDT':'BTC','ETH-USDT':'ETH','SOL-USDT':'SOL','BNB-USDT':'BNB','HYPE-USDT':'HYPE','LIT-USDT':'LIT'};
   function connect(){
     let ws;try{ws=new WebSocket('wss://ws.okx.com:8443/ws/v5/public');}catch{return;}
     ws.onopen=()=>{window.__WS_ON__=true;
@@ -1723,7 +1728,7 @@ loadFOMC();          // FOMC schedule is local data — always available
 loadMarket();        // then refresh live (incl. heatmap)
 initTicker();        // ⚡ tick-by-tick prices via OKX WebSocket
 setTimeout(refreshCryptoRegimes,4000);              // first live regime compute shortly after load
-setInterval(refreshCryptoRegimes,60*1000);          // crypto regimes: every 60s
+setInterval(refreshCryptoRegimes,30*1000);          // crypto regimes: every 30s
 setInterval(()=>loadLongShort(),60*1000);           // BTC/ETH positioning: every 60s
 setInterval(()=>loadHeatmap(true),2*60*1000);       // 8-coin heatmap: every 2 min
 setInterval(loadMarket,5*60*1000);                  // everything else: every 5 min while open
